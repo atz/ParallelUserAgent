@@ -1,3 +1,11 @@
+Mon May 26 2003 Marc Langheinrich <marclang@cpan.org>
+
+ o CPAN Release 2.56
+
+ o forgot to package t/TEST in the latest release, so all tests failed
+
+ o some miscenallenous bugfixes (undefined values, etc)
+
 Fri May 23 2003 Marc Langheinrich <marclang@cpan.org>
  
  o CPAN Release 2.55 (namefix release: didn't realize PAUSE had some

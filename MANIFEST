@@ -15,6 +15,7 @@ lib/LWP/Parallel/Protocol/http.pm
 lib/LWP/Parallel/Protocol/https.pm
 lib/LWP/Parallel/Protocol/ftp.pm
 lib/LWP/Parallel/Protocol/file.pm
+t/TEST
 t/local/compatibility.t
 t/local/file.t
 t/local/http.t
@@ -24,3 +25,4 @@ t/live/jigsaw-auth-d.t
 t/live/jigsaw-md5.t
 t/live/jigsaw-neg.t
 t/live/mozilla-ftp.t
+t/live/ENABLED.off

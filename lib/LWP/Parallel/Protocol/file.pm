@@ -1,7 +1,7 @@
 # Implementation of the file protocol for LWP::Parallel, based on 
 # LWP::Protocol::file and LWP::Parallel::Protocol::ftp pattern.
 # contributed by Jeff Behr, October 2001
-# $Id: file.pm,v 1.1 2003/03/11 16:49:35 langhein Exp $
+# $Id: file.pm,v 1.2 2003/05/26 08:03:34 langhein Exp $
 
 package LWP::Parallel::Protocol::file;
 
@@ -295,3 +295,4 @@ sub _write_as_html {
     return ($files, $response);
 }
 
+1;

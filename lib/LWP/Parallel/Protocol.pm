@@ -1,5 +1,5 @@
 #  -*- perl -*-
-# $Id: Protocol.pm,v 1.8 2003/02/19 14:58:28 langhein Exp $
+# $Id: Protocol.pm,v 1.9 2003/05/26 08:03:50 langhein Exp $
 # derived from: Protocol.pm,v 1.39 2001/10/26 19:00:21 gisle Exp
 
 package LWP::Parallel::Protocol;
@@ -37,7 +37,7 @@ methods and functions are provided:
 
 require LWP::Protocol;
 @ISA = qw(LWP::Protocol);
-$VERSION = sprintf("%d.%02d", q$Revision: 1.8 $ =~ /(\d+)\.(\d+)/);
+$VERSION = sprintf("%d.%02d", q$Revision: 1.9 $ =~ /(\d+)\.(\d+)/);
 
 
 use HTTP::Status ();
@@ -251,7 +251,8 @@ sub receive {
 	    $response->push_header("Client-Aborted", "die");
 	} else {
 	    # pass return value from callback through to implementor class
-	  LWP::Debug::debug("return-code from Callback was '$retval'");
+	  LWP::Debug::debug("return-code from Callback was '".
+ 	                    (defined $retval ? "$retval'" : "[undef]'")); 
 	    return $retval; 
 	}
     }
