@@ -1,3 +1,19 @@
+Mon Feb 21 2001 Marc Langheinrich <marclang@cs.washington.edu>
+
+ o CPAN Release 2.50
+
+ o Fixed https.pm inheritance bug
+   (thanks to Chris Osborn <cosborn@digisle.net> and countless others)
+
+ o Fixed (serious) RobotUA.pm bug, where robots.txt files get ignored
+   (thanks to Vlad Ciubotariu <ciu@infoiasi.ro>)
+
+ o Fixed bug in Useragent.pm assigning same response to all timed out
+   entries
+   (thanks to John Salmon <john@thesalmons.org>)
+
+ o checked against libwww-5.50
+
 Mon May 08 2000 Marc Langheinrich <marclang@cs.washington.edu>
 
  o CPAN Release 2.49

@@ -1,9 +1,9 @@
 # -*- perl -*-
-# $Id: Parallel.pm,v 1.13 2000/05/08 13:03:16 langhein Exp $
+# $Id: Parallel.pm,v 1.14 2001/02/21 11:10:44 langhein Exp $
 
 package LWP::Parallel;
 
-$VERSION = '2.49';
+$VERSION = '2.50';
 sub Version { $VERSION };
 
 require 5.004;
@@ -292,7 +292,7 @@ on how to use this library.
 
 =head1 COPYRIGHT
 
-Copyright 1997-2000 Marc Langheinrich.
+Copyright 1997-2001 Marc Langheinrich.
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.

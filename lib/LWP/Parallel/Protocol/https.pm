@@ -1,5 +1,5 @@
 # -*- perl -*-
-# $Id: https.pm,v 1.1 2000/05/08 14:47:16 langhein Exp $
+# $Id: https.pm,v 1.2 2001/02/21 11:12:19 langhein Exp $
 # derived from: https.pm,v 1.8 1999/09/20 12:48:37 gisle Exp $
 
 use strict;
@@ -24,6 +24,6 @@ use vars qw(@ISA);
 
 require LWP::Parallel::Protocol::http;
 require LWP::Protocol::https;
-@ISA=qw(LWP::Parallel::Protocol::http LWP::Protocol::https);
+@ISA=qw(LWP::Protocol::https LWP::Parallel::Protocol::http);
 
 1;

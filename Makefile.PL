@@ -1,10 +1,10 @@
 # This -*- perl -*- script writes the Makefile for LWP::Parallel
-# $Id: Makefile.PL,v 1.8 2000/04/20 14:49:45 langhein Exp $
+# $Id: Makefile.PL,v 1.9 2001/02/21 11:13:02 langhein Exp $
 use ExtUtils::MakeMaker;
 
 print "Checking your version of libwww...";
 my $required  = "5.48";
-my $supported = "5.48";
+my $supported = "5.50";
 my $version;
 eval {
     require LWP;
@@ -22,16 +22,6 @@ Install at your own risk, or wait until a more recent version of this library
 is available.
 
 WARNING
-
-    # Detailed Breakdown
-    #
-    # LWP:      || 5.21 | 5.20 | 5.18                    | 5.10
-    # ----------++------+------+-------------------------+-----
-    # UserAgent ||   -  | 1.58 | !1.51 (uses alarms)
-    # RobotUA   ||   -  | 1.13 | 1.11
-    # Protocol  ||   -  | 1.31 | !1.29 (uses alarms)
-    # /http     || 1.41 | 1.39 | !1.33 (uses LWP::Sockets)
-    # /ftp      ||   -  | 1.20 | 1.19
 
 };
 if ($@) {
@@ -57,7 +47,6 @@ EOT
     if ($version < $supported) { print " ok ($version)\nNote: you should upgrade to $supported (although ParallelUA should work ok)\n"; } 
     else { print " ok\n"; }
 }
-
 # See lib/ExtUtils/MakeMaker.pm for details of how to influence
 # the contents of the Makefile that is written.
 WriteMakefile(

@@ -1,5 +1,5 @@
 # -*- perl -*-
-# $Id: UserAgent.pm,v 1.21 2000/05/08 13:02:29 langhein Exp $
+# $Id: UserAgent.pm,v 1.22 2001/02/21 11:11:55 langhein Exp $
 # derived from: UserAgent.pm,v 1.66 1999/03/20 07:37:36 gisle Exp $
 #         and:  ParallelUA.pm,v 1.16 1997/07/23 16:45:09 ahoy Exp $
 
@@ -875,11 +875,11 @@ sub wait {
 	# 
 	# empty array, means that select timed out
 	LWP::Debug::trace('select timeout');
-	my $response = HTTP::Response->new(&HTTP::Status::RC_REQUEST_TIMEOUT,
-					'User-agent timeout (select)');
 	my $socket;
 	# set all active requests to "timed out" 
 	foreach $socket ($fh_in->handles ,$fh_out->handles) {
+	  my $response = HTTP::Response->new(&HTTP::Status::RC_REQUEST_TIMEOUT,
+					     'User-agent timeout (select)');
 	  my $entry = $self->{'entries_by_sockets'}->{$socket};
 	  delete $self->{'entries_by_sockets'}->{$socket};
 	  unless ($entry->response->code) {
@@ -1427,7 +1427,7 @@ L<LWP::UserAgent>
 
 =head1 COPYRIGHT
 
-Copyright 1997-2000 Marc Langheinrich E<lt>marclang@cs.washington.edu>
+Copyright 1997-2001 Marc Langheinrich E<lt>marclang@cs.washington.edu>
 
 This library is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
