@@ -1,8 +1,10 @@
 # -*- perl -*-
-# $Id: http.pm,v 1.7 1999/04/15 02:02:16 marc Exp $
+# $Id: http.pm,v 1.8 2000/04/20 14:49:17 langhein Exp $
 # derived from: http.pm,v 1.46 1999/03/19 22:03:10 gisle Exp $
 
 package LWP::Parallel::Protocol::http;
+
+use strict;
 
 require LWP::Debug;
 require HTTP::Response;
@@ -11,15 +13,15 @@ require IO::Socket;
 require IO::Select;
 use Carp ();
 
+use vars qw(@ISA @EXTRA_SOCK_OPTS);
+
 require LWP::Parallel::Protocol;
 require LWP::Protocol::http;
 @ISA = qw(LWP::Parallel::Protocol LWP::Protocol::http);
 
-use strict;
 my $CRLF         = "\015\012";     # how lines should be terminated;
 				   # "\r\n" is not correct on all systems, for
 				   # instance MacPerl defines it to "\012\015"
-
 
 # The following 4 methods are more or less a simple breakdown of the
 # original $http->request method:
@@ -48,7 +50,7 @@ sub handle_connect {
     }
 
     my $url = $request->url;
-    my($host, $port, $fullpath) = $self->get_address ($proxy, $url);
+    my($host, $port, $fullpath) = $self->get_address ($proxy, $url, $method);
 
     # connect to remote site
     my $socket = $self->connect ($host, $port, $timeout);
@@ -73,7 +75,7 @@ sub handle_connect {
 }
 
 sub get_address {
-    my ($self, $proxy, $url) = @_;
+    my ($self, $proxy, $url,$method) = @_;
     my($host, $port, $fullpath);
 
     # Check if we're proxy'ing
@@ -81,7 +83,9 @@ sub get_address {
 	# $proxy is an URL to an HTTP server which will proxy this request
 	$host = $proxy->host;
 	$port = $proxy->port;
-	$fullpath = $url->as_string;
+	$fullpath = $method && ($method eq "CONNECT") ?
+                    ($url->host . ":" . $url->port) :
+                     $url->as_string;
     }
     else {
 	$host = $url->host;
@@ -132,24 +136,14 @@ sub write_request {
       unless defined($h->header('Content-Length')) ||
 	$h->content_type =~ /^multipart\//;
     # For HTTP/1.1 we could have used chunked transfer encoding...
-  } else {
+  } 
+  else {
     $h->header('Content-Length' => length $$cont_ref)
       if defined($$cont_ref) && length($$cont_ref);
   }  
     
-  # HTTP/1.1 will require us to send the 'Host' header, so we might
-  # as well start now.
-  my $hhost = $url->authority; 
-  $hhost =~ s/^([^\@]*)\@//;  # get rid of potential "user:pass@"
-  $h->header('Host' => $hhost) unless defined $h->header('Host');
-  
-  # add authorization header if we need them.  HTTP URLs do
-  # not really support specification of user and password, but
-  # we allow it.
-  if (defined($1) && not $h->header('Authorization')) {
-    $h->authorization_basic(split(":", $1));
-  }
-  
+  $self->_fixup_header($h, $url);
+
   my $buf = $request_line . $h->as_string($CRLF) . $CRLF;
   my $n;  # used for return value from syswrite/sysread
 
@@ -168,7 +162,8 @@ sub write_request {
       die "short write" unless $n == length($buf);
       LWP::Debug::conns($buf);
     }
-  } elsif (defined($$cont_ref) && length($$cont_ref)) {
+  } 
+  elsif (defined($$cont_ref) && length($$cont_ref)) {
     die "write timeout" if $timeout && !$sel->can_write($timeout);
     $n = $socket->syswrite($$cont_ref, length($$cont_ref));
     die $! unless defined($n);
@@ -176,7 +171,7 @@ sub write_request {
     LWP::Debug::conns($buf);
   }
   
-  # For a HTTP request, the 'command' socket is the same as the
+  # For an HTTP request, the 'command' socket is the same as the
   # 'listen' socket, so we just return the socket here.
   # (In the ftp module, we usually have one socket being the command
   # socket, and another one being the read socket, so that's why we
@@ -264,7 +259,8 @@ sub read_chunk {
       $response->protocol($ver);
       # store $request info in $response object
       $response->request($request);
-    } elsif ((length($buf) >= 5 and $buf !~ /^HTTP\//) or
+    } 
+    elsif ((length($buf) >= 5 and $buf !~ /^HTTP\//) or
 	     $buf =~ /\012/ ) {
       # HTTP/0.9 or worse
       LWP::Debug::debug("HTTP/0.9 assume OK");
@@ -273,7 +269,8 @@ sub read_chunk {
       $response->protocol('HTTP/0.9');
       # store $request info in $response object
       $response->request($request);
-    } else {
+    } 
+    else {
       # need more data
       LWP::Debug::debug("need more data to know which protocol");
     }
@@ -304,20 +301,11 @@ sub read_chunk {
 	if ($line =~ /^([a-zA-Z0-9_\-.]+)\s*:\s*(.*)/) {
 	  $response->push_header($key, $val) if $key;
 	  ($key, $val) = ($1, $2);
-	} elsif ($line =~ /^\s+(.*)/) {
-	  unless ($key) {
-	      $response->header("Client-Warning" =>
-				=> "Illegal continuation header");
-	      $buf = "$save$buf";
-	      last;
-	  }
-	  $val .= " $1";   # 1.39 ?
-	  # $buf .= " $1"; # 1.31
+	} elsif ($line =~ /^\s+(.*)/ && $key) {
+	  $val .= " $1"; 
 	} else {
-	    $response->header("Client-Warning" =>
-			      "Illegal header '$line'");
-	    $buf = "$save$buf";
-	    last;
+	    $response->push_header("Client-Bad-Header-Line" =>
+			           $line);
 	}
       }
       $response->push_header($key, $val) if $key;
@@ -333,16 +321,23 @@ sub read_chunk {
   
   # if we have both a response AND the headers, start parsing the rest
   if ( $response && &headers($response) ) {
-    # need to read content
-    # can't use $self->collect, since we don't want to give up
-    # control (by letting Protocol::collect use a $collector callback)
-    my $retval = $self->receive($arg, $response, \$buf, $entry);
-    # A return value lower than zero means a command from our 
-    # callback function. Make sure it reaches ParallelUA:
-    #	return (defined($retval) and (0 > $retval) ? 
-    #		$retval : $n);
-    ## This is all not yet 100% working here I fear... 
-    return (defined $retval? $retval : $n);
+    $self->_get_sock_info($response, $socket); 
+    # the CONNECT method does not need to read content
+    if ($request->method eq "CONNECT") { # from LWP 5.48's Protocol/http.pm
+	$response->{client_socket} = $socket;  # so it can be picked up
+    }  
+    else {
+      # all other methods want to read content, I guess...
+      # Note that we can't use $self->collect, since we don't want to give up
+      # control (by letting Protocol::collect use a $collector callback)
+      my $retval = $self->receive($arg, $response, \$buf, $entry);
+      # A return value lower than zero means a command from our 
+      # callback function. Make sure it reaches ParallelUA:
+      #	return (defined($retval) and (0 > $retval) ? 
+      #		$retval : $n);
+      ## This is all not yet 100% working here I fear... 
+      return (defined $retval? $retval : $n);
+    }
   }
   
   $pushback{$socket} = $buf if $buf;

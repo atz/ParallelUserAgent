@@ -1,5 +1,5 @@
 # -*- perl -*-
-# $Id: RobotPUA.pm,v 1.2 1998/09/06 23:56:13 marc Exp $
+# $Id: RobotPUA.pm,v 1.3 2000/04/20 14:49:09 langhein Exp $
 
 package LWP::RobotPUA;
 use Exporter();
@@ -47,6 +47,13 @@ Marc Langheinrich, marclang@cs.washington.edu
 =head1 SEE ALSO
 
 L<LWP::Parallel::RobotUA>, L<LWP::Parallel::UserAgent>, L<LWP::RobotUA>
+
+=head1 COPYRIGHT
+
+Copyright 1997-2000 Marc Langheinrich.
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself.
 
 =cut
 

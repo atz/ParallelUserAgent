@@ -1,9 +1,9 @@
 # -*- perl -*-
-# $Id: Parallel.pm,v 1.12 1999/07/18 04:52:16 marc Exp $
+# $Id: Parallel.pm,v 1.12 2000/04/20 14:49:09 langhein Exp $
 
 package LWP::Parallel;
 
-$VERSION = '2.43';
+$VERSION = '2.48';
 sub Version { $VERSION };
 
 require 5.004;
@@ -289,5 +289,12 @@ Marc Langheinrich, marclang@cs.washington.edu
 See L<LWP> for an overview on Web communication using Perl. See
 L<LWP::Parallel::UserAgent> and L<LWP::Parallel::RobotUA> for details
 on how to use this library.
+
+=head1 COPYRIGHT
+
+Copyright 1997-2000 Marc Langheinrich.
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself.
 
 =cut

@@ -2,7 +2,7 @@
 			 Parallel User Agent
                         ---------------------
 
-(c) 1997,1998 Marc Langheinrich
+(c) 1997-2000 Marc Langheinrich
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.
@@ -10,7 +10,7 @@ it under the same terms as Perl itself.
 1. What is it?
 --------------
 ParallelUserAgent (or PUA for short) is an extension of the existing
-libwww5.x distribution. It allows you to connect to download several
+libwww-5.x distribution. It allows you to connect to download several
 Web pages in _parallel_, without having to request each page one after
 the other. 
 
@@ -54,13 +54,15 @@ it tests ok anyways :-)
 
 Checked versions so far:
 	
+	libwww-5.48			use ParallelUA-2.48
+	libwww-5.44 - 5.47		untested (use 2.43)
 	libwww-5.41 - 5.43		use ParallelUA-2.43
 	libwww-5.20 - 5.36		use up to ParallelUA-2.39
 	libwww-5.19			untested
 	libwww-5.18 and below		not ok!
 
 Note: For optimal performance you shoud use the _latest_ version of BOTH
-      libwww-perl (i.e. 5.43) and ParallelUserAgent (i.e. 2.43).
+      libwww-perl (i.e. 5.48) and ParallelUserAgent (i.e. 2.48).
 
 3. How to use it?
 -----------------
@@ -83,7 +85,7 @@ their interfaces which can be viewed using "perldoc <Modulename>".
 ---------------------------------------------------- 
 
 You should start out by installing a clean copy of the latest
-libwww5.x package, which should overwrite any existing PUA modules
+libwww-5.x package, which should overwrite any existing PUA modules
 which used to replace some of the LWP modules. 
 
 The new PUA distribution will still offer the LWP::ParallelUA and
@@ -116,7 +118,7 @@ You can join the mailing list by sending a message to
 
 COPYRIGHT
 
-  © 1997-1999 Marc Langheinrich. All rights reserved.
+  © 1997-2000 Marc Langheinrich. All rights reserved.
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.

@@ -1,5 +1,5 @@
 # -*- perl -*-
-# $Id: UserAgent.pm,v 1.20 1999/07/18 04:26:01 marc Exp $
+# $Id: UserAgent.pm,v 1.20 2000/04/20 14:49:17 langhein Exp $
 # derived from: UserAgent.pm,v 1.66 1999/03/20 07:37:36 gisle Exp $
 #         and:  ParallelUA.pm,v 1.16 1997/07/23 16:45:09 ahoy Exp $
 
@@ -679,7 +679,7 @@ sub _connect {
     # something went wrong. Explanation might be in second argument
     unless ($response->code) {
       # set response code and message accordingly (note: simply saying
-      # $response = $fullpath or $response = new HTTP::Response would
+      # $response = $fullpath or $response = HTTP::Response->new would
       # only affect the local copy of our response object. When using
       # its ->code and ->message methods directly, we can affect the
       # original instead!)
@@ -1136,7 +1136,9 @@ sub handle_response
     
     my $code = $response->code;
 
-    LWP::Debug::debug('Handling result: '.HTTP::Status::status_message($code));
+    LWP::Debug::debug('Handling result: '. 
+                      (HTTP::Status::status_message($code) ||
+		       "Unknown code $code"));
 
     if ($code == &HTTP::Status::RC_MOVED_PERMANENTLY or
 	$code == &HTTP::Status::RC_MOVED_TEMPORARILY) {
@@ -1185,8 +1187,8 @@ sub handle_response
     {
 	my $proxy = ($code == &HTTP::Status::RC_PROXY_AUTHENTICATION_REQUIRED);
 	my $ch_header = $proxy ?  "Proxy-Authenticate" : "WWW-Authenticate";
-	my $challenge = $response->header($ch_header);
-	unless (defined $challenge) {
+	my @challenge = $response->header($ch_header);
+	unless (@challenge) {
 	    $response->header("Client-Warning" => 
 			      "Missing Authenticate header");
 	  LWP::Debug::trace("<- ($response [".$response->header.'] )');
@@ -1194,27 +1196,28 @@ sub handle_response
 	}
 	
 	require HTTP::Headers::Util;
-	$challenge =~ tr/,/;/;  # "," is used to separate auth-params!!
-	($challenge) = HTTP::Headers::Util::split_header_words($challenge);
-	my $scheme = lc(shift(@$challenge));
-	shift(@$challenge); # no value
-	$challenge = { @$challenge };  # make rest into a hash
-	for (keys %$challenge) {       # make sure all keys are lower case
-	    $challenge->{lc $_} = delete $challenge->{$_};
-	}
+	CHALLENGE: for my $challenge (@challenge) {
+	  $challenge =~ tr/,/;/;  # "," is used to separate auth-params!!
+	  ($challenge) = HTTP::Headers::Util::split_header_words($challenge);
+	  my $scheme = lc(shift(@$challenge));
+	  shift(@$challenge); # no value
+	  $challenge = { @$challenge };  # make rest into a hash
+	  for (keys %$challenge) {       # make sure all keys are lower case
+	      $challenge->{lc $_} = delete $challenge->{$_};
+	  }
 
-	unless ($scheme =~ /^([a-z]+(?:-[a-z]+)*)$/) {
+	  unless ($scheme =~ /^([a-z]+(?:-[a-z]+)*)$/) {
 	    $response->header("Client-Warning" => 
 			      "Bad authentication scheme '$scheme'");
-	  LWP::Debug::trace("<- ($response [".$response->header.'] )');
+	    LWP::Debug::trace("<- ($response [".$response->header.'] )');
 	    return $response;
-	}
-	$scheme = $1;  # untainted now
-	my $class = "LWP::Authen::\u$scheme";
-	$class =~ s/-/_/g;
+	  }
+	  $scheme = $1;  # untainted now
+	  my $class = "LWP::Authen::\u$scheme";
+	  $class =~ s/-/_/g;
 	
-	no strict 'refs';
-	unless (defined %{"$class\::"}) {
+	  no strict 'refs';
+	  unless (defined %{"$class\::"}) {
 	    # try to load it
 	    eval "require $class";
 	    if ($@) {
@@ -1224,15 +1227,17 @@ sub handle_response
 		} else {
 		    $response->header("Client-Warning" => $@);
 		}
-	      LWP::Debug::trace("<- ($response [".$response->header.'] )');
-		return $response;
+		next CHALLENGE;
 	    }
-	}
-      LWP::Debug::trace("<- authenticates");
-	return $class->authenticate($self, $proxy, $challenge, $response,
+	  }
+          LWP::Debug::trace("<- authenticates");
+	  return $class->authenticate($self, $proxy, $challenge, $response,
 				    $request, $entry->arg, $entry->size);
+	}
+        LWP::Debug::trace("<- ($response [".$response->header.'] )');
+	return $response;
     }
-  LWP::Debug::trace("<- standard exit ($response)");
+    LWP::Debug::trace("<- standard exit ($response)");
     return $response;
 }
 
@@ -1371,6 +1376,7 @@ sub init_request {
     # Set User-Agent and From headers if they are defined
     $request->header('User-Agent' => $agent) if $agent;
     $request->header('From' => $from) if $from;
+    $request->header('Range' => "bytes=0-$max_size") if $max_size;
     $cookie_jar->add_cookie_header($request) if $cookie_jar;
 
     # Transfer some attributes to the protocol object
@@ -1405,9 +1411,9 @@ You can register a callback function. See LWP::UserAgent for details.
 
 =head1 BUGS
 
-Probably lots! This is only an interim release until this
+Probably lots! This was meant only as an interim release until this
 functionality is incorporated into LWPng, the next generation libwww
-module.
+module (though it has been this way for over 2 years now!)
 
 Needs a lot more documentation on how callbacks work!
 
@@ -1415,9 +1421,12 @@ Needs a lot more documentation on how callbacks work!
 
 L<LWP::UserAgent>
 
-=head1 AUTHOR
+=head1 COPYRIGHT
 
-Marc Langheinrich E<lt>marclang@cs.washington.edu>
+Copyright 1997-2000 Marc Langheinrich E<lt>marclang@cs.washington.edu>
+
+This library is free software; you can redistribute it and/or
+modify it under the same terms as Perl itself.
 
 =cut
 

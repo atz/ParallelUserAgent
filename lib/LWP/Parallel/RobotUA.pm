@@ -1,5 +1,5 @@
 # -*- perl -*-
-# $Id: RobotUA.pm,v 1.4 1999/04/15 02:01:55 marc Exp $
+# $Id: RobotUA.pm,v 1.5 2000/04/20 14:49:17 langhein Exp $
 # derived from: RobotUA.pm,v 1.15 1999/03/20 07:37:36 gisle Exp $
 
 
@@ -8,7 +8,7 @@ package LWP::Parallel::RobotUA;
 use LWP::Parallel::UserAgent qw(:CALLBACK);
 require LWP::RobotUA;
 @ISA = qw(LWP::Parallel::UserAgent LWP::RobotUA Exporter);
-$VERSION = sprintf("%d.%02d", q$Revision: 1.4 $ =~ /(\d+)\.(\d+)/);
+$VERSION = sprintf("%d.%02d", q$Revision: 1.5 $ =~ /(\d+)\.(\d+)/);
 
 @EXPORT = qw(); 
 # callback commands
@@ -238,10 +238,18 @@ sub _make_connections_in_order {
 
 			my $fresh_until = $robot_res->fresh_until;
 			if ($robot_res->is_success) {
-			  LWP::Debug::debug("Parsing robot rules for ". 
-					    $request->url->host_port);
-			    $rules->parse($robot_url, $robot_res->content, 
-						    $fresh_until);
+		          my $c = $robot_res->content;
+	                  if ($robot_res->content_type =~ m,^text/, && 
+			      $c =~ /Disallow/) {
+			    LWP::Debug::debug("Parsing robot rules for ". 
+			  		      $request->url->host_port);
+		            $rules->parse($robot_url, $c, $fresh_until);
+	                  }
+	                  else {
+		            LWP::Debug::debug("Ignoring robots.txt for ".
+				              $request->url->host_port);
+		            $rules->parse($robot_url, "", $fresh_until);
+	                  }
 			} else {
 			  LWP::Debug::debug("No robots.txt file found at " . 
 					    $request->url->host_port);
@@ -405,10 +413,18 @@ sub _make_connections_unordered {
 			    
 			    my $fresh_until = $robot_res->fresh_until;
 			    if ($robot_res->is_success) {
-			      LWP::Debug::debug("Parsing robot rules for ". 
-						$request->url->host_port);
-				$rules->parse($robot_url, $robot_res->content, 
-					      $fresh_until);
+			      my $c = $robot_res->content;
+	                      if ($robot_res->content_type =~ m,^text/, && 
+			          $c =~ /Disallow/) {
+			        LWP::Debug::debug("Parsing robot rules for ". 
+				  		  $request->url->host_port);
+		                $rules->parse($robot_url, $c, $fresh_until);
+	                      }
+	                      else {
+		                LWP::Debug::debug("Ignoring robots.txt for ".
+				                  $request->url->host_port);
+		                $rules->parse($robot_url, "", $fresh_until);
+	                      }
 			    } else {
 			      LWP::Debug::debug("No robots.txt file found at ".
 						$request->url->host_port);
@@ -510,9 +526,12 @@ sub _checking_robots_txt {
 
 L<LWP::Parallel::UserAgent>, L<LWP::RobotUA>, L<WWW::RobotRules>
 
-=head1 AUTHOR
+=head1 COPYRIGHT
 
-Marc Langheinrich E<lt>marclang@cs.washington.edu>
+Copyright 1997-2000 Marc Langheinrich E<lt>marclang@cs.washington.edu>
+
+This library is free software; you can redistribute it and/or
+modify it under the same terms as Perl itself.
 
 =cut
 

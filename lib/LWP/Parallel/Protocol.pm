@@ -1,5 +1,5 @@
 #  -*- perl -*-
-# $Id: Protocol.pm,v 1.4 1999/07/18 04:03:04 marc Exp $
+# $Id: Protocol.pm,v 1.4 2000/04/20 14:49:17 langhein Exp $
 # derived from: Protocol.pm,v 1.33 1999/03/19 21:46:41 gisle Exp $
 
 package LWP::Parallel::Protocol;
@@ -111,7 +111,7 @@ sub implementor
     $ic = "LWP::Parallel::Protocol::$scheme";  # default location
     no strict 'refs';
     # check we actually have one for the scheme:
-    unless (defined @{"${ic}::ISA"}) {
+    unless (@{"${ic}::ISA"}) { # fixed in LWP 5.48
 	# try to autoload it
         LWP::Debug::debug("Try autoloading $ic");
 	eval "require $ic";
@@ -283,7 +283,7 @@ Inspect the F<LWP/Parallel/Protocol/http.pm> file for examples of usage.
 
 =head1 COPYRIGHT
 
-Copyright 1997,1998 Marc Langheinrich.
+Copyright 1997-2000 Marc Langheinrich.
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.
