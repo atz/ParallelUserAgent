@@ -1,6 +1,6 @@
 # -*- perl -*-
-# $Id: UserAgent.pm,v 1.22 2001/02/21 11:11:55 langhein Exp $
-# derived from: UserAgent.pm,v 1.66 1999/03/20 07:37:36 gisle Exp $
+# $Id: UserAgent.pm,v 1.25 2001/05/31 17:42:35 langhein Exp $
+# derived from: UserAgent.pm,v 1.80 2001/03/19 19:30:16 gisle Exp $
 #         and:  ParallelUA.pm,v 1.16 1997/07/23 16:45:09 ahoy Exp $
 
 package LWP::Parallel::UserAgent::Entry;
@@ -184,6 +184,8 @@ sub new {
 
     # handle responses per default
     $self->{'handle_response'} 	= 1;
+    # do not perform nonblocking connects per default
+    $self->{'nonblock'} = 0;
     # don't handle duplicates per default
     $self->{'handle_duplicates'} = 0;
     # do not use ordered lists per default
@@ -252,6 +254,23 @@ sub redirect {
   LWP::Debug::trace("($_[0])");
     $self->{'handle_response'} = $_[0]  if defined $_[0];
 }
+
+=item $ua->nonblock ( $ok )
+
+Per default, LWP::Parallel will connect to a site using a blocking call. If
+you want to speed this step up, you can try the new non-blocking version of 
+the connect call by setting $ua->nonblock to 'true'. 
+The standard value is 'false' (although this might change in the future if
+nonblocking connects turn out to be stable enough.)
+
+=cut
+
+sub nonblock {
+    my $self = shift;
+  LWP::Debug::trace("($_[0])");
+    $self->{'nonblock'} = $_[0]  if defined $_[0];
+}
+
 
 =item $ua->duplicates ( $ok )
 
@@ -392,7 +411,7 @@ sub register {
     return HTTP::Response->new(&HTTP::Status::RC_NOT_IMPLEMENTED,
 		               "Unknown request type: '$request'");
   }
-  LWP::Debug::trace("(".$request->url->as_string .
+  LWP::Debug::debug("(".$request->url->as_string .
 		    ", ". (defined $arg ? $arg : '[undef]') . 
 		    ", ". (defined $size ? $size : '[undef]') .
 		    ", ". (defined $redirect ? $redirect : '[undef]') . ")");
@@ -597,7 +616,7 @@ sub _check_bandwith {
 		$self->{'failed_connections'}->{$netloc}++;
 	    }
 	} else { 
-	  LWP::Debug::debug ("No requests available");
+	  LWP::Debug::debug ("No open request-slots available");
 	    return; };
     } elsif ( $self->_hosts_available ) {
 	$self->on_connect ( $request, $response, $entry );
@@ -609,7 +628,7 @@ sub _check_bandwith {
 	    $self->{'failed_connections'}->{$netloc}++;
 	}
     } else {
-      LWP::Debug::debug ("No hosts available");
+      LWP::Debug::debug ("No open host-slots available");
 	return;
     }
     # indicate success here
@@ -643,7 +662,7 @@ sub _connect {
   
   my ( $request, $response ) = $entry->get( qw(request response) );
   
-  my ($error_response, $proxy, $protocol, $timeout, $use_eval) = 
+  my ($error_response, $proxy, $protocol, $timeout, $use_eval, $nonblock) = 
     $self->init_request ($request);
   if ($error_response) {
     # we need to manually set code and message of $response as well, so
@@ -659,8 +678,8 @@ sub _connect {
   # figure out host and connect to site
   if ($use_eval) {
     eval { 
-      ($socket, $fullpath) = $protocol->handle_connect ($request, $proxy,
-							$timeout);
+      ($socket, $fullpath) = 
+	 $protocol->handle_connect ($request, $proxy, $timeout, $nonblock );
     };
     if ($@) {
       if ($@ =~ /^timeout/i) {
@@ -668,15 +687,15 @@ sub _connect {
 	$response->message ('User-agent timeout');
       } else {
 	# remove file/line number
-	$@ =~ s/\s+at\s+\S+\s+line\s+\d+\s*//;  
+	$@ =~ s/\s+at\s+\S+\s+line\s+\d+.*//s;  
 	$response->code (&HTTP::Status::RC_INTERNAL_SERVER_ERROR);
 	$response->message ($@);
       }
     }
   } else {
     # user has to handle any dies, usually timeouts
-    ($socket, $fullpath) = $protocol->handle_connect ($request, $proxy,
-						      $timeout);
+    ($socket, $fullpath) = 
+	 $protocol->handle_connect ($request, $proxy, $timeout, $nonblock );
   }
 
   unless ($socket) {
@@ -710,7 +729,7 @@ sub _connect {
     $self->{'entries_by_sockets'}->{$socket}   = $entry;
 #  LWP::Debug::debug ("Socket is $socket");
     # last not least: register socket with (write-) Select object
-    $self->{'select_out'}->add ($socket);
+    $self->_add_out_socket($socket);
   }
   
   return;
@@ -722,7 +741,7 @@ sub _connect {
 sub _remove_current_connection {
   my ($self, $entry ) = @_;
   LWP::Debug::trace("($entry [".$entry->request->url."] )");
-  
+
   $entry->cmd_socket(undef);
   $entry->listen_socket(undef);
 
@@ -731,7 +750,8 @@ sub _remove_current_connection {
     delete $self->{'current_connections'}->{$netloc}
     unless --$self->{'current_connections'}->{$netloc};
   } else {
-    Carp::carp "No connections for '$netloc'";
+    # this is serious! better stop here
+    Carp::confess "No connections for '$netloc'";
   }
 }
 
@@ -801,6 +821,7 @@ valuable main memory.
 =cut
 
 # proposed by Glenn Wood <glenn@savesmart.com>
+# additional fixes by Kirill http://www.en-directo.net/mail/kirill.html
 sub discard_entry {
     my ($self, $entry) = @_;
   LWP::Debug::trace("($entry)") if $entry;
@@ -808,36 +829,21 @@ sub discard_entry {
     # Entries are added to ordpend_connections in $self->register:  
     #    push (@{$self->{'ordpend_connections'}}, $entry);
     #
-    # In case we are making connections in order, the entry should
-    # have been removed from ordpend_connections in
-    # _make_connections_in_order anyways, so we don't have to remove
-    # it here anymore. 
-    unless ($self->{'handle_in_order'}) {
-	# the reason we even maintain this ordered list is that
-	# currently the user can change the "in_order" flag any
-	# time, even if we already started 'wait'ing. 
-	my $i = 0; my $ntry;
-	for $ntry ( @{$self->{'ordpend_connections'}} )
-	{
-	    if ( $ntry = $entry )
-	    {
-		splice @{$self->{'ordpend_connections'}}, $i, 1;
-		last;
-	    }
-	    $i += 1;
-	}
-    }
-    # in $self->register:
-    #    $self->{'entries_by_requests'}->{$request} = $entry;
-    delete $self->{'entries_by_requests'}->{$entry->{'request'}};
+    # the reason we even maintain this ordered list is that
+    # currently the user can change the "in_order" flag any
+    # time, even if we already started 'wait'ing. 
+    my $entries = $self->{ordpend_connections};
+    @$entries = grep $_ != $entry, @$entries;
 
-    # in $self->_connect::: 
-    #    $entry->cmd_socket($socket);
-    #    $self->{'entries_by_sockets'}->{$socket}   = $entry;
-    delete $self->{'entries_by_sockets'}->{$entry->{'cmd_socket'}};
+    $entries = $self->{entries_by_requests};
+    delete @$entries{grep $entries->{$_} == $entry, keys %$entries};
+
+    $entries = $self->{entries_by_sockets};
+    delete @$entries{grep $entries->{$_} == $entry, keys %$entries};
 
     return;
 }
+
 
 =item $ua->wait ( $timeout )
 
@@ -875,16 +881,19 @@ sub wait {
 	# 
 	# empty array, means that select timed out
 	LWP::Debug::trace('select timeout');
-	my $socket;
+	my ($socket);
 	# set all active requests to "timed out" 
 	foreach $socket ($fh_in->handles ,$fh_out->handles) {
-	  my $response = HTTP::Response->new(&HTTP::Status::RC_REQUEST_TIMEOUT,
-					     'User-agent timeout (select)');
 	  my $entry = $self->{'entries_by_sockets'}->{$socket};
 	  delete $self->{'entries_by_sockets'}->{$socket};
 	  unless ($entry->response->code) {
+	    # moved the creation of the timeout response into the loop so that
+	    # each entry gets its own response object (otherwise they'll all 
+	    # share the same request entry in there). thanks to John Salmon 
+	    # <john@thesalmons.org> for pointing this out.
+	    my $response = HTTP::Response->new(&HTTP::Status::RC_REQUEST_TIMEOUT,
+					     'User-agent timeout (select)');
 	    # don't overwrite an already existing response
-	    # (but how to deal with partial responses?)
 	    $entry->response ($response);
 	    $response->request ($entry->request);
 	    # only count as failure if we have no response yet
@@ -893,6 +902,12 @@ sub wait {
 	    my $res = $entry->response;
 	    $res->message ($res->message . " (timeout)");
 	    $entry->response ($res);
+	    # thanks to Jonathan Feinberg <jdf@pobox.com> who finally
+	    # reminded me that partial replies should trigger some sort 
+	    # of on_xxx callback as well. Let's try on_failure for now,
+	    # unless people think that on_return is the right thing to
+	    # call here:
+	    $self->on_failure ($entry->request, $res, $entry);
 	  }
 	  $self->_remove_current_connection ( $entry );
 	} 
@@ -903,173 +918,28 @@ sub wait {
       } else {
 	# something is ready for reading or writing
 	my ($ready_read, $ready_write, $error) = @ready;
-	my ($entry, $socket);
+        my ($socket);
 
 	#
 	# WRITE QUEUE
 	#
 	foreach $socket (@$ready_write) {
-	  LWP::Debug::debug('Writing to Sockets');
-	  $entry = $self->{'entries_by_sockets'}->{$socket};
-	  
-	  my ( $request, $protocol, $fullpath, $arg ) = 
-	    $entry->get( qw(request protocol fullpath arg) );
 
-	  my ($listen_socket, $response);
-	  if ($self->{'use_eval'}) {
-	    eval {
-	      ($listen_socket, $response) = 
-		$protocol->write_request ($request, 
-					  $socket, 
-					  $fullpath, 
-					  $arg,
-					  $timeout);
-	    };
-	    if ($@) {
-	      # if our call fails, we might not have a $response object, so we
-	      # have to create a new one here
-	      if ($@ =~ /^timeout/i) {
-		$response = HTTP::Response->new(&HTTP::Status::RC_REQUEST_TIMEOUT,
-						'User-agent timeout (syswrite)');
-	      } else {
-		# remove file/line number
-		$@ =~ s/\s+at\s+\S+\s+line\s+\d+\s*//;  
-		$response = HTTP::Response->new(&HTTP::Status::RC_INTERNAL_SERVER_ERROR,
-						$@);
-	      }
-	      $entry->response ($response);
-	      $self->on_failure ($request, $response, $entry);	    
-	    }
-	  } else {
-	    # user has to handle any dies, usually timeouts
-	    ($listen_socket, $response) = 
-	      $protocol->write_request ($request, 
-					$socket, 
-					$fullpath, 
-					$arg,
-					$timeout);
-	  }
+          # modularized this chunk so that it can be reused by 
+	  # POE::Component::Client::UserAgent
+	  $self->_perform_write ($socket, $timeout);
 
-	  if ($response and !$response->is_success) {
-	    $entry->response($response);
-	    $entry->response->request($request);
-	    LWP::Debug::trace('Error while issuing request '.
-			      $request->url->as_string);
-	  } elsif ($response) {
-            # successful response already?
-	    LWP::Debug::trace('Fast response for request '.
-			      $request->url->as_string . 
-			      ' ['. length($response->content) . 
-			      ' bytes]');
-	    $entry->response($response);
-	    $entry->response->request($request);
-	    my $content = $response->content;
-	    $response->content(''); # clear content here, so that it
-	                            # can be properly processed by ->receive
-	    $protocol->receive_once($arg, $response, $content, $entry);
-	  }
-	  # one write is (should be?) enough
-	  delete $self->{'entries_by_sockets'}->{$socket};
-	  $fh_out->remove($socket);
-	  if (ref($listen_socket)) {
-	    # now make sure we start reading from the $listen_socket:
-	    # file existing entry under new (listen_)socket
-	    $fh_in->add ($listen_socket);
-	    $entry->listen_socket($listen_socket);
-	    $self->{'entries_by_sockets'}->{$listen_socket} = $entry;
-	  } else {
-	    # remove from current_connections
-	    $self->_remove_current_connection ( $entry );
-	  } 
 	}
 	
 	#
 	# READ QUEUE
 	#
 	foreach $socket (@$ready_read) {
-	  LWP::Debug::debug('Reading from Sockets');
-	  $entry = $self->{'entries_by_sockets'}->{$socket};
-	  
-	  my ( $request, $response, $protocol, $fullpath, $arg, $size) =
-	    $entry->get( qw(request response protocol 
-			    fullpath arg size) );
-	  
-	  my $retval;
-	  if ($self->{'use_eval'}) {
-	    eval {
-	      $retval =  $protocol->read_chunk ($response, $socket, $request,
-						$arg, $size, $timeout,
-						$entry);
-	    };
-	    if ($@) {
-	      if ($@ =~ /^timeout/i) {
-		$response->code (&HTTP::Status::RC_REQUEST_TIMEOUT);
-		$response->message ('User-agent timeout (sysread)');
-	      } else {
-		# remove file/line number
-		$@ =~ s/\s+at\s+\S+\s+line\s+\d+\s*//;  
-		$response->code (&HTTP::Status::RC_INTERNAL_SERVER_ERROR);
-		$response->message ($@);
-	      }
-	      $self->on_failure ($request, $response, $entry);	    
-	    }
-	  } else {
-	    # user has to handle any dies, usually timeouts
-	    $retval =  $protocol->read_chunk ($response, $socket, $request,
-					      $arg, $size, $timeout,
-					      $entry);
-	  }
 
-	  # examine return value. $retval is either a positive
-	  # number, indicating the number of bytes read, or
-	  # '0' (for EOF), or a callback-function code (<0)
-	  
-	  LWP::Debug::debug ("'$retval' = read_chunk from $entry (".
-			     $request->url.")");
-	  
-	  # call on_return method if it's the end of this request
-	  unless ($retval > 0) {
-	    my $command = $self->on_return ($request, $response, $entry);
-	    $retval = $command  if defined $command and $command < 0;
-	    
-	    LWP::Debug::debug ("'". (defined $command ? $command : '[undef]').
-			       "' = on_return");
-	    
-	  }
-	  if ($retval > 0) { 
-	    # In this case, just update response entry
-	    # $entry->response($response);
-	  } else { # numeric, that means: EOF, C_LASTCON, or C_ENDCON}
-	    # read_chunk returns 0 if we reached EOF
-	    $fh_in->remove($socket);
-	    # use protocol dependent method to close connection
-	    $protocol->close_connection($response, $socket, 
-					$request, $entry->cmd_socket);	    
-#	    $socket->shutdown(2); # see "man perlfunc" & "man 2 shutdown"
-	    close ($socket);
-	    $socket = undef; # close socket
+          # modularized this chunk so that it can be reused by 
+	  # POE::Component::Client::UserAgent
+          $self->_perform_read ($socket, $timeout);
 
-	    # remove from current_connections
-	    $self->_remove_current_connection ( $entry );
-	    # handle redirects and security if neccessary
-	    
-	    if ($retval eq C_ENDALL) {
-	      # should we clean up a bit? Remove Select-queues:
-	      $self->{'select_in'} = IO::Select->new();
-	      $self->{'select_out'} = IO::Select->new();
-	      return $self->{'entries_by_requests'};
-	    } elsif ($retval eq C_LASTCON) {
-	      # just delete all pending connections
-	      $self->{'pending_connections'} = {};
-	      $self->{'ordpend_connections'} = [];
-	    } else {
-	      if ($entry->redirect_ok) {
-		$self->handle_response ($entry);
-	      } 
-	      # pop off next pending_connection (if bandwith available)
-	      $self->_make_connections;
-	    }
-	  }
 	}
       }				# of unless (@ready...) {} else {}
       
@@ -1101,13 +971,213 @@ sub wait {
   # or maybe re-initialize in case we register more requests later?
   # in that case we'll have to make sure we don't try to reconnect
   # to old sockets later - so we should create new Select-objects!
-  $self->{'select_in'} = IO::Select->new();
-  $self->{'select_out'} = IO::Select->new();
+  $self->_remove_all_sockets();
   
   # allows the caller quick access to all issued requests,
   # although some original requests may have been replaced by
   # redirects or authentication requests...
   return $self->{'entries_by_requests'};
+}
+
+# socket handling modularized in order to work better with POE
+# as suggested by Kirill http://www.en-directo.net/mail/kirill.html
+#
+sub _remove_out_socket { 
+  my ($self,$socket) = @_; 
+  $self->{select_out}->remove($socket);
+}
+
+sub _remove_in_socket { 
+  my ($self,$socket) = @_; 
+  $self->{select_in}->remove($socket);
+}
+
+sub _add_out_socket { 
+  my ($self,$socket) = @_; 
+  $self->{select_out}->add($socket);
+}
+
+sub _add_in_socket { 
+  my ($self,$socket) = @_; 
+  $self->{select_in}->add($socket);
+}
+
+sub _remove_all_sockets { 
+  my ($self) = @_;
+  $self->{select_in} = IO::Select->new();
+  $self->{select_out} = IO::Select->new();
+}
+
+sub _perform_write
+{
+  my ($self, $socket, $timeout) = @_;
+  LWP::Debug::debug('Writing to Sockets');
+  my $entry = $self->{'entries_by_sockets'}->{$socket};
+  
+  my ( $request, $protocol, $fullpath, $arg, $proxy) = 
+    $entry->get( qw(request protocol fullpath arg proxy) );
+
+  my ($listen_socket, $response);
+  if ($self->{'use_eval'}) {
+    eval {
+      ($listen_socket, $response) = 
+	$protocol->write_request ($request, 
+				  $socket, 
+				  $fullpath, 
+				  $arg,
+				  $timeout,
+				  $proxy);
+    };
+    if ($@) {
+      # if our call fails, we might not have a $response object, so we
+      # have to create a new one here
+      if ($@ =~ /^timeout/i) {
+	$response = HTTP::Response->new(&HTTP::Status::RC_REQUEST_TIMEOUT,
+					'User-agent timeout (syswrite)');
+      } else {
+	# remove file/line number
+	$@ =~ s/\s+at\s+\S+\s+line\s+\d+.*//s;  
+	$response = HTTP::Response->new(&HTTP::Status::RC_INTERNAL_SERVER_ERROR,
+					$@);
+      }
+      $entry->response ($response);
+      $self->on_failure ($request, $response, $entry);	    
+    }
+  } else {
+    # user has to handle any dies, usually timeouts
+    ($listen_socket, $response) = 
+      $protocol->write_request ($request, 
+				$socket, 
+				$fullpath, 
+				$arg,
+				$timeout,
+				$proxy);
+  }
+
+  if ($response and !$response->is_success) {
+    $entry->response($response);
+    $entry->response->request($request);
+    LWP::Debug::trace('Error while issuing request '.
+		      $request->url->as_string);
+  } elsif ($response) {
+           # successful response already?
+    LWP::Debug::trace('Fast response for request '.
+		      $request->url->as_string . 
+		      ' ['. length($response->content) . 
+		      ' bytes]');
+    $entry->response($response);
+    $entry->response->request($request);
+    my $content = $response->content;
+    $response->content(''); # clear content here, so that it
+                            # can be properly processed by ->receive
+    $protocol->receive_once($arg, $response, $content, $entry);
+  }
+  # one write is (should be?) enough
+  delete $self->{'entries_by_sockets'}->{$socket};
+  $self->_remove_out_socket($socket);
+
+  if (ref($listen_socket)) {
+    # now make sure we start reading from the $listen_socket:
+    # file existing entry under new (listen_)socket
+    $self->_add_in_socket ($listen_socket);
+    $entry->listen_socket($listen_socket);
+    $self->{'entries_by_sockets'}->{$listen_socket} = $entry;
+  } else {
+    # remove from current_connections
+    $self->_remove_current_connection ( $entry );
+  } 
+
+  return;
+}       
+
+sub _perform_read
+{
+  my ($self, $socket, $timeout) = @_;
+
+  LWP::Debug::debug('Reading from Sockets');
+  my $entry = $self->{'entries_by_sockets'}->{$socket};
+  
+  my ( $request, $response, $protocol, $fullpath, $arg, $size) =
+    $entry->get( qw(request response protocol 
+		    fullpath arg size) );
+  
+  my $retval;
+  if ($self->{'use_eval'}) {
+    eval {
+      $retval =  $protocol->read_chunk ($response, $socket, $request,
+					$arg, $size, $timeout,
+					$entry);
+    };
+    if ($@) {
+      if ($@ =~ /^timeout/i) {
+	$response->code (&HTTP::Status::RC_REQUEST_TIMEOUT);
+	$response->message ('User-agent timeout (sysread)');
+      } else {
+	# remove file/line number
+	$@ =~ s/\s+at\s+\S+\s+line\s+\d+.*//s;  
+	$response->code (&HTTP::Status::RC_INTERNAL_SERVER_ERROR);
+	$response->message ($@);
+      }
+      $self->on_failure ($request, $response, $entry);	    
+    }
+  } else {
+    # user has to handle any dies, usually timeouts
+    $retval =  $protocol->read_chunk ($response, $socket, $request,
+				      $arg, $size, $timeout,
+				      $entry);
+  }
+
+  # examine return value. $retval is either a positive
+  # number, indicating the number of bytes read, or
+  # '0' (for EOF), or a callback-function code (<0)
+  
+  LWP::Debug::debug ("'$retval' = read_chunk from $entry (".
+		     $request->url.")");
+  
+  # call on_return method if it's the end of this request
+  unless ($retval > 0) {
+    my $command = $self->on_return ($request, $response, $entry);
+    $retval = $command  if defined $command and $command < 0;
+    
+    LWP::Debug::debug ("'". (defined $command ? $command : '[undef]').
+		       "' = on_return");
+    
+  }
+
+  if ($retval > 0) { 
+    # In this case, just update response entry
+    # $entry->response($response);
+  } else { # numeric, that means: EOF, C_LASTCON, or C_ENDCON
+    # read_chunk returns 0 if we reached EOF
+    $self->_remove_in_socket($socket);
+    # use protocol dependent method to close connection
+    $entry->protocol->close_connection($entry->response, $socket, 
+				$entry->request, $entry->cmd_socket);	    
+    #  $socket->shutdown(2); # see "man perlfunc" & "man 2 shutdown"
+    close ($socket);
+    $socket = undef; # close socket
+
+    # remove from current_connections
+    $self->_remove_current_connection ( $entry );
+    # handle redirects and security if neccessary
+    
+    if ($retval eq C_ENDALL) {
+      # should we clean up a bit? Remove Select-queues:
+      $self->_remove_all_sockets();
+      return $self->{'entries_by_requests'};
+    } elsif ($retval eq C_LASTCON) {
+      # just delete all pending connections
+      $self->{'pending_connections'} = {};
+      $self->{'ordpend_connections'} = [];
+    } else {
+      if ($entry->redirect_ok) {
+	$self->handle_response ($entry);
+      } 
+      # pop off next pending_connection (if bandwith available)
+      $self->_make_connections;
+    }
+  }
+  return;
 }
 
 =item $ua->handle_response($request, $arg [, $size])
@@ -1151,7 +1221,7 @@ sub handle_response
 	my $referral = $request->clone;
 
 	# And then we update the URL based on the Location:-header.
-	my $referral_uri = $response->header('Location');
+	my($referral_uri) = $response->header('Location');
 	{
 	    # Some servers erroneously return a relative URL for redirects,
 	    # so make it absolute if it not already is.
@@ -1367,20 +1437,20 @@ sub init_request {
 	$protocol = LWP::Parallel::Protocol::create($scheme);
     };
     if ($@) {
-	$@ =~ s/\s+at\s+\S+\s+line\s+\d+\.?\s*//;  # remove file/line number
+	$@ =~ s/\s+at\s+\S+\s+line\s+\d+.*//s;  # remove file/line number
 	return HTTP::Response->new(&HTTP::Status::RC_NOT_IMPLEMENTED, $@)
     }
 
     # Extract fields that will be used below
     my ($agent, $from, $timeout, $cookie_jar,
-        $use_eval, $parse_head, $max_size) =
+        $use_eval, $parse_head, $max_size, $nonblock) =
       @{$self}{qw(agent from timeout cookie_jar
-                  use_eval parse_head max_size)};
+                  use_eval parse_head max_size nonblock)};
 
     # Set User-Agent and From headers if they are defined
-    $request->header('User-Agent' => $agent) if $agent;
-    $request->header('From' => $from) if $from;
-    $request->header('Range' => "bytes=0-$max_size") if $max_size;
+    $request->init_header('User-Agent' => $agent) if $agent;
+    $request->init_header('From' => $from) if $from;
+    $request->init_header('Range' => "bytes=0-$max_size") if $max_size;
     $cookie_jar->add_cookie_header($request) if $cookie_jar;
 
     # Transfer some attributes to the protocol object
@@ -1393,7 +1463,7 @@ sub init_request {
 		       ", ". (defined $timeout ? $timeout : '[undef]').
 		       ", ". (defined $use_eval ? $use_eval : '[undef]').")");
 
-    (undef, $proxy, $protocol, $timeout, $use_eval);
+    (undef, $proxy, $protocol, $timeout, $use_eval, $nonblock);
 }
 
 =head1 ADDITIONAL METHODS

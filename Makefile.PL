@@ -1,10 +1,10 @@
 # This -*- perl -*- script writes the Makefile for LWP::Parallel
-# $Id: Makefile.PL,v 1.9 2001/02/21 11:13:02 langhein Exp $
+# $Id: Makefile.PL,v 1.10 2001/05/28 17:46:34 langhein Exp $
 use ExtUtils::MakeMaker;
 
 print "Checking your version of libwww...";
-my $required  = "5.48";
-my $supported = "5.50";
+my $required  = "5.52";
+my $supported = "5.53";
 my $version;
 eval {
     require LWP;
@@ -35,7 +35,7 @@ package before you can proceed.
 
 The latest version of libwww-perl should always be available from:
 
-     http://www.sn.no/libwww-perl/
+     http://www.linpro.no/lwp/
 
 The library is also available from the Comprehensive Perl Archive
 Network (CPAN).  Visit <URL:http://www.perl.com/CPAN/> to find a CPAN

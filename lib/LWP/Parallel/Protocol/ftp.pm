@@ -1,6 +1,6 @@
 # -*- perl -*-
-# $Id: ftp.pm,v 1.8 2000/04/20 14:49:17 langhein Exp $
-# derived from ftp.pm,v 1.25 1998/11/19 21:45:01 aas Exp $
+# $Id: ftp.pm,v 1.9 2001/05/28 17:44:44 langhein Exp $
+# derived from: ftp.pm,v 1.28 2001/03/16 00:14:47 gisle Exp $
 
 # Implementation of the ftp protocol (RFC 959). We let the Net::FTP
 # package do all the dirty work.
@@ -159,13 +159,21 @@ sub write_request {
   my $remote_file = pop(@path);
   $remote_file = '' unless defined $remote_file;
   
-#   my $params = $url->params;
-#   if (defined($params) && $params eq 'type=a') {
-#     $ftp->ascii;
-#   } else {
-    $ftp->binary;
-#  }
-  
+  my $type;
+   if (ref $remote_file) {
+       my @params;
+       ($remote_file, @params) = @$remote_file;
+       for (@params) {
+           $type = $_ if s/^type=//;
+       }
+  }
+
+  if ($type && $type eq 'a') {
+      $ftp->ascii;
+  } else {
+      $ftp->binary;
+  }
+
   for (@path) {
     LWP::Debug::debug("CWD $_");
     unless ($ftp->cwd($_)) {

@@ -1,6 +1,6 @@
 # -*- perl -*-
-# $Id: http.pm,v 1.8 2000/04/20 14:49:17 langhein Exp $
-# derived from: http.pm,v 1.46 1999/03/19 22:03:10 gisle Exp $
+# $Id: http.pm,v 1.10 2001/05/31 17:42:55 langhein Exp $
+# derived from: http.pm,v 1.52 2001/04/05 15:08:33 gisle Exp $
 
 package LWP::Parallel::Protocol::http;
 
@@ -39,7 +39,7 @@ LWP::UserAgent)
 =cut
 
 sub handle_connect {
-    my ($self, $request, $proxy, $timeout) = @_;
+    my ($self, $request, $proxy, $timeout, $nonblock) = @_;
 
     # check method
     my $method = $request->method;
@@ -53,7 +53,7 @@ sub handle_connect {
     my($host, $port, $fullpath) = $self->get_address ($proxy, $url, $method);
 
     # connect to remote site
-    my $socket = $self->connect ($host, $port, $timeout);
+    my $socket = $self->connect ($host, $port, $timeout, $nonblock);
 
 #  LWP::Debug::debug("Socket is $socket");
 
@@ -97,18 +97,60 @@ sub get_address {
 }
 
 sub connect {
-    my ($self, $host, $port, $timeout) = @_;
-    # this method inherited from LWP::Protocol::http
-    my $socket = $self->_new_socket($host, $port, $timeout);
-    # currently empty function in LWP::Protocol::http
-    # $self->_check_sock($request, $socket);
-#  LWP::Debug::debug("Socket is $socket");
-	    
+    my ($self, $host, $port, $timeout, $nonblock) = @_;
+    my ($socket); 
+    unless ($nonblock) { 
+      # perform good ol' blocking behavior
+      # 
+      # this method inherited from LWP::Protocol::http
+      $socket = $self->_new_socket($host, $port, $timeout);
+      # currently empty function in LWP::Protocol::http
+      # $self->_check_sock($request, $socket);
+    } else { 
+      # new non-blocking behavior
+      #
+      # thanks to http://www.en-directo.net/mail/kirill.html
+      use Socket();
+      use POSIX();
+      $socket = 
+        IO::Socket::INET->new(Proto => 'tcp', # Timeout => $timeout,
+	                      $self->_extra_sock_opts ($host, $port));
+
+      die "Can't create socket for $host:$port ($@)" unless $socket;
+      unless ( defined $socket->blocking (0) )
+      {
+	# IO::Handle::blocking doesn't (yet?) work on Win32 (ActiveState port)
+	# The following happens to work though.
+	# See also: perlport manpage, POE::Kernel, POE::Wheel::SocketFactory,
+	#   Winsock2.h
+	if ( $^O eq 'MSWin32' )
+	{
+	  my $set_it = "1";
+	  my $ioctl_val = 0x80000000 | (4 << 16) | (ord('f') << 8) | 126;
+  	  $ioctl_val = ioctl ($socket, $ioctl_val, $set_it);
+#	warn 'Win32 ioctl returned ' . (defined $ioctl_val ? $ioctl_val : '[undef]') . "\n";
+#	warn "Win32 ioctlsocket failed\n" unless $ioctl_val;
+	}
+      }
+      my $rhost = Socket::inet_aton ($host);
+      die "Bad hostname $host" unless defined $rhost;
+      unless ( $socket->connect ($port, $rhost) )
+      {
+	my $err = $! + 0;
+	# More trouble with ActiveState: EINPROGRESS and EWOULDBLOCK
+	# are missing from POSIX.pm. See Microsoft's Winsock2.h
+	my ($einprogress, $ewouldblock) = $^O eq 'MSWin32' ?
+		(10036, 10035) : (POSIX::EINPROGRESS(), POSIX::EWOULDBLOCK());
+	die "Can't connect to $host:$port ($@)"
+		if $err and $err != $einprogress and $err != $ewouldblock;
+      } 
+    }
+    # LWP::Debug::debug("Socket is $socket");
     $socket;
 }
 
 sub write_request {
-  my ($self, $request, $socket, $fullpath, $arg, $timeout) = @_;
+  my ($self, $request, $socket, $fullpath, $arg, $timeout, $proxy) = @_;
 
   my $method = $request->method;
   my $url    = $request->url;
@@ -118,7 +160,8 @@ sub write_request {
 		    ", ". (defined $socket ? $socket : '[undef]').
 		    ", ". (defined $fullpath ? $fullpath : '[undef]').
 		    ", ". (defined $arg ? $arg : '[undef]').
-		    ", ". (defined $timeout ? $timeout : '[undef]'). ")");
+		    ", ". (defined $timeout ? $timeout : '[undef]'). 
+		    ", ". (defined $proxy ? $proxy : '[undef]'). ")");
 
   my $sel = IO::Select->new($socket) if $timeout;
 
@@ -142,7 +185,7 @@ sub write_request {
       if defined($$cont_ref) && length($$cont_ref);
   }  
     
-  $self->_fixup_header($h, $url);
+  $self->_fixup_header($h, $url, $proxy);
 
   my $buf = $request_line . $h->as_string($CRLF) . $CRLF;
   my $n;  # used for return value from syswrite/sysread

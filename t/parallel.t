@@ -1,6 +1,9 @@
 $| = 1; # autoflush
 
 $DEBUG = 0;
+$NONBLOCK = 0; # set to 1 to try out non-blocking connects (new in 2.51)
+# use LWP::Debug qw(+debug +trace);
+
 
 # uncomment the following line if you want to run these tests from the command
 # line using the local version of Parallel::UserAgent (otherwise perl will take
@@ -67,6 +70,7 @@ require HTTP::Request;
 my $ua = new LWP::Parallel::UserAgent;
 $ua->agent("Mozilla/0.01 " . $ua->agent);
 $ua->from('marclang@cs.washington.edu');
+$ua->nonblock($NONBLOCK);  
 
 
 #---------------------------------------------------------------

@@ -1,6 +1,6 @@
 # -*- perl -*-
-# $Id: RobotUA.pm,v 1.6 2001/02/21 11:11:24 langhein Exp $
-# derived from: RobotUA.pm,v 1.15 1999/03/20 07:37:36 gisle Exp $
+# $Id: RobotUA.pm,v 1.7 2001/05/28 17:44:17 langhein Exp $
+# derived from: RobotUA.pm,v 1.17 2000/04/09 11:21:11 gisle Exp $
 
 
 package LWP::Parallel::RobotUA;
@@ -8,7 +8,7 @@ package LWP::Parallel::RobotUA;
 use LWP::Parallel::UserAgent qw(:CALLBACK);
 require LWP::RobotUA;
 @ISA = qw(LWP::Parallel::UserAgent LWP::RobotUA Exporter);
-$VERSION = sprintf("%d.%02d", q$Revision: 1.6 $ =~ /(\d+)\.(\d+)/);
+$VERSION = sprintf("%d.%02d", q$Revision: 1.7 $ =~ /(\d+)\.(\d+)/);
 
 @EXPORT = qw(); 
 # callback commands

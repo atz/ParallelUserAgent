@@ -1,3 +1,24 @@
+Mon May 28 2001 Marc Langheinrich <marclang@cs.washington.edu>
+
+ o CPAN Release 2.51
+
+ o NO SUPPORT FOR HTTP/1.1 YET! (new in libwww-perl-5.53) 
+
+ o connections that time out halfway through their data transfer now 
+   call the on_failure callback (nothing was called in prior versions, 
+   thanks to Jonathan Feinberg <jdf@pobox.com> for spotting this)
+
+ o prepared compatibilty for POE http://sourceforge.net/projects/poe/
+   (still needs some work, thanks to http://www.en-directo.net/mail/kirill.html)
+
+ o added (optional) non-blocking connects (use $ua->nonblock(1))
+   (experimental, thanks to http://www.en-directo.net/mail/kirill.html)
+
+ o Fixed bug in Useragent.pm assigning same response to all timed out
+   entries (thanks to John Salmon <john@thesalmons.org>)
+
+ o checked against libwww-5.53
+
 Mon Feb 21 2001 Marc Langheinrich <marclang@cs.washington.edu>
 
  o CPAN Release 2.50
@@ -7,10 +28,6 @@ Mon Feb 21 2001 Marc Langheinrich <marclang@cs.washington.edu>
 
  o Fixed (serious) RobotUA.pm bug, where robots.txt files get ignored
    (thanks to Vlad Ciubotariu <ciu@infoiasi.ro>)
-
- o Fixed bug in Useragent.pm assigning same response to all timed out
-   entries
-   (thanks to John Salmon <john@thesalmons.org>)
 
  o checked against libwww-5.50
 

@@ -1,6 +1,6 @@
 #  -*- perl -*-
-# $Id: Protocol.pm,v 1.5 2001/02/21 11:12:04 langhein Exp $
-# derived from: Protocol.pm,v 1.33 1999/03/19 21:46:41 gisle Exp $
+# $Id: Protocol.pm,v 1.6 2001/05/28 17:44:30 langhein Exp $
+# derived from: Protocol.pm,v 1.36 2000/04/09 11:20:48 gisle Exp $
 
 package LWP::Parallel::Protocol;
 
@@ -37,7 +37,7 @@ methods and functions are provided:
 
 require LWP::Protocol;
 @ISA = qw(LWP::Protocol);
-$VERSION = sprintf("%d.%02d", q$Revision: 1.5 $ =~ /(\d+)\.(\d+)/);
+$VERSION = sprintf("%d.%02d", q$Revision: 1.6 $ =~ /(\d+)\.(\d+)/);
 
 
 use HTTP::Status ();
