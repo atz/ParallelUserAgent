@@ -1,5 +1,5 @@
 # -*- perl -*-
-# $Id: UserAgent.pm,v 1.5 1998/04/27 04:14:55 marc Exp $
+# $Id: UserAgent.pm,v 1.7 1998/07/08 23:51:21 marc Exp $
 # derived from: UserAgent.pm,v 1.60 1998/04/02 13:06:05 aas Exp $
 #         and:  ParallelUA.pm,v 1.16 1997/07/23 16:45:09 ahoy Exp $
 
@@ -778,7 +778,7 @@ writing a HUGE if..elsif..else.. branch in this global method.
 =cut
 
 sub on_return {
-  my ($self, $request, $response, $entru) = @_;
+  my ($self, $request, $response, $entry) = @_;
   LWP::Debug::trace("(".join (", ",$request->url->as_string,
 			      $response->code,
 			      $response->message).")");
@@ -889,11 +889,11 @@ sub wait {
 				      $fullpath, 
 				      $arg,
 				      $timeout);
-	  if ($response) {
+	  if ($response and !$response->is_success) {
 	    $entry->response($response);
+	    $entry->response->request($request);
 	    LWP::Debug::trace('Error while issuing request '.
-			      $request->url->as_string)
-	      unless $response->is_success;
+			      $request->url->as_string);
 	  }
 	  # one write is (should be?) enough
 	  delete $self->{'entries_by_sockets'}->{$socket};

@@ -1,5 +1,5 @@
 # -*- perl -*-
-# $Id: http.pm,v 1.2 1998/03/13 02:29:23 marc Exp $
+# $Id: http.pm,v 1.3 1998/06/10 07:44:41 marc Exp $
 # derived from http.pm,v 1.41 1998/02/12 22:24:11 aas Exp
 
 package LWP::Parallel::Protocol::http;
@@ -135,11 +135,13 @@ sub write_request {
 	  $request->header('Content-Length' => length $$contRef)
 	      if length $$contRef;
       } elsif (ref($contRef) eq 'CODE') {
-	    die 'No Content-Length header for request with code content'
+	return (undef, HTTP::Response->new(&HTTP::Status::RC_BAD_REQUEST,
+	        'No Content-Length header for request with code content'))
 		unless $request->header('Content-Length');
 	} else {
 	    my $type = ref($contRef);
-	    die "Illegal content type ($type) in request";
+	    return (undef, HTTP::Response->new(&HTTP::Status::RC_BAD_REQUEST,
+	            "Illegal content type ($type) in request"));
 	}
   }
   
@@ -159,29 +161,52 @@ sub write_request {
   
   # we always assume that we are writeable
   my $buf = $request_line . $request->headers_as_string($CRLF) . $CRLF;
-  {
-      die "write timeout" if $timeout && !$sel->can_write($timeout);
-      my $n = $socket->syswrite($buf, length($buf));
-      die $! unless defined($n);
-      die "short write" unless $n == length($buf);
-    LWP::Debug::conns($buf);
-  }
+  my $n; # used for return value from syswrite/sysread
+
+  return (undef, 
+	  HTTP::Response->new(&HTTP::Status::RC_REQUEST_TIMEOUT, "Write Timeout"))
+      if $timeout && !$sel->can_write($timeout);
+  $n = $socket->syswrite($buf, length($buf));
+  return (undef, 
+	  HTTP::Response->new(&HTTP::Status::RC_SERVICE_UNAVAILABLE, 
+			      "Syswrite Error: $!"))
+      unless defined($n);
+  return (undef, 
+	  HTTP::Response->new(&HTTP::Status::RC_BAD_GATEWAY, "Short Write"))
+      unless $n == length($buf);
+  LWP::Debug::conns($buf);
+
   
   if (defined $content) {
       if (ref($contRef) eq 'CODE') {
 	  while ( ($buf = &$contRef()), defined($buf) && length($buf)) {
-	      die "write timeout" if $timeout && !$sel->can_write($timeout);
-	      my $n = $socket->syswrite($buf, length($buf));
-	      die $! unless defined($n);
-	      die "short write" unless $n == length($buf);
-	    LWP::Debug::conns($buf);
+	      return (undef, 
+		      HTTP::Response->new(&HTTP::Status::RC_REQUEST_TIMEOUT, 
+					  "Write Timeout"))
+		  if $timeout && !$sel->can_write($timeout);
+	      $n = $socket->syswrite($buf, length($buf));
+	      return (undef, 
+		      HTTP::Response->new(&HTTP::Status::RC_SERVICE_UNAVAILABLE, $!))
+		  unless defined($n);
+	      return (undef, 
+		      HTTP::Response->new(&HTTP::Status::RC_BAD_GATEWAY, 
+					  "Short Write"))
+		  unless $n == length($buf);
+	      LWP::Debug::conns($buf);
 	  }
       } elsif (length($$contRef)) {
-	  die "write timeout" if $timeout && !$sel->can_write($timeout);
-	  my $n = $socket->syswrite($$contRef, length($$contRef));
-	  die $! unless defined($n);
-	  die "short write" unless $n == length($$contRef);
-	LWP::Debug::conns($buf);
+	  return (undef, HTTP::Response->new(&HTTP::Status::RC_REQUEST_TIMEOUT, 
+	         "Write Timeout"))
+		     if $timeout && !$sel->can_write($timeout);
+	  $n = $socket->syswrite($$contRef, length($$contRef));
+	  return (undef,
+		  HTTP::Response->new(&HTTP::Status::RC_SERVICE_UNAVAILABLE, $!))
+	      unless defined($n);
+	  return (undef, 
+		  HTTP::Response->new(&HTTP::Status::RC_BAD_GATEWAY, 
+				      "Short Write"))
+	      unless $n == length($$contRef);
+	  LWP::Debug::conns($buf);
       }
   }
 
@@ -236,12 +261,27 @@ sub read_chunk {
   my $buf = "";
   # read one chunk at a time from $socket
   
-  die "read timeout" if $timeout && !$sel->can_read($timeout);
+  if ( $timeout && !$sel->can_read($timeout) ) {
+      $response->message("Read Timeout");
+      $response->code(&HTTP::Status::RC_REQUEST_TIMEOUT);
+      $response->request($request);
+      return 0; # EOF
+  };
   my $n = $socket->sysread($buf, $size, length($buf));
-  die $! unless defined($n);
+  unless (defined ($n)) {
+      $response->message("Sysread Error: $!"); 
+      $response->code(&HTTP::Status::RC_SERVICE_UNAVAILABLE);
+      $response->request($request);
+      return 0; # EOF
+  };
   # need our own EOF detection here
   unless ( $n ) {
-    warn "Unexpected EOF" unless ($response  and  $response->code);
+      unless ($response  and  $response->code) {
+	  $response->message("Unexpected EOF while reading response");
+	  $response->code(&HTTP::Status::RC_BAD_GATEWAY);
+	  $response->request($request);
+	  return 0; # EOF
+      }
   }
 
   LWP::Debug::conns($buf);

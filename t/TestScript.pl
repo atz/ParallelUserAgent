@@ -55,7 +55,7 @@ require WWW::RobotRules::AnyDBM_File;
 #use LWP::Debug qw(+);
 
 # shortcut for demo URLs
-my $url = "http://www.cs.washington.edu/"; 
+my $url = "http://localhost/index.html"; 
 
 # comment out what you want to try:
 my $reqs = [  

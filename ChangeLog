@@ -1,3 +1,26 @@
+Thu Jul 9 1998 Marc Langheinrich <marclang@cs.washington.edu>
+
+ o CPAN Release 2.34
+
+ o Fixed wrong package name in LWP::Parallel::Protocol::ftp
+ 	
+ o Fixed typo in Parallel::UserAgent
+	
+ o Updated libwww-5.34 changes (one in ftp.pm,v 1.23)
+	 
+ o Checked against libwww-5.34	
+
+Wed Jun 10 1998 Marc Langheinrich <marclang@cs.washington.edu>
+
+ o Developers Release 2.33a
+
+ o Fixed "die"s in Parallel/Protocol/http.pm to return
+   HTTP::Response instead.
+
+ o Adjusted Parallel/UserAgent.pm to handle http.pm errors.
+
+ o Checked against libwww-5.33
+	
 Mon Apr 27 1998 Marc Langheinrich <marclang@cs.washington.edu>
 
  o CPAN Release 2.32
