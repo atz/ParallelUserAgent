@@ -1,5 +1,5 @@
 # -*- perl -*-
-# $Id: UserAgent.pm,v 1.17 1999/04/15 02:02:03 marc Exp $
+# $Id: UserAgent.pm,v 1.19 1999/04/19 00:39:30 marc Exp $
 # derived from: UserAgent.pm,v 1.66 1999/03/20 07:37:36 gisle Exp $
 #         and:  ParallelUA.pm,v 1.16 1997/07/23 16:45:09 ahoy Exp $
 
@@ -20,7 +20,8 @@ my %fields = (
 	      request => undef,
 	      size => undef, 
 	      cmd_socket => undef,
-	      listen_socket => undef
+	      listen_socket => undef,
+	      content_size => undef,
 	      );
 
 sub new {
@@ -487,6 +488,7 @@ sub register {
       response 	=> $response, 
       arg 	=> $arg, 
       size	=> $size, 
+      content_size => 0,
       redirect_ok => $self->{'handle_response'},
     } );
     # if the user specified 

@@ -1,5 +1,5 @@
 #  -*- perl -*-
-# $Id: Protocol.pm,v 1.2 1999/04/15 02:01:48 marc Exp $
+# $Id: Protocol.pm,v 1.3 1999/04/16 04:08:47 marc Exp $
 # derived from: Protocol.pm,v 1.33 1999/03/19 21:46:41 gisle Exp $
 
 package LWP::Parallel::Protocol;
@@ -37,7 +37,7 @@ methods and functions are provided:
 
 require LWP::Protocol;
 @ISA = qw(LWP::Protocol);
-$VERSION = sprintf("%d.%02d", q$Revision: 1.2 $ =~ /(\d+)\.(\d+)/);
+$VERSION = sprintf("%d.%02d", q$Revision: 1.3 $ =~ /(\d+)\.(\d+)/);
 
 
 use HTTP::Status ();
@@ -158,8 +158,9 @@ sub receive {
     if ($parse_head && $response->content_type eq 'text/html') {
 	$parser = HTML::HeadParser->new($response->{'_headers'});
     }
-    my $content_size = 0;
     
+    my $content_size = $entry->content_size;
+
     # Note: We don't need alarms here since we are not making any tcp
     # connections.  All the data we need is alread in \$content, so we
     # just read out a string value -- nothing should slow us down here
@@ -178,6 +179,7 @@ sub receive {
         LWP::Debug::debug("read " . length($$content) . " bytes");
 	$response->add_content($$content);
 	$content_size += length($$content);
+	$entry->content_size($content_size); # update persistant size counter
 	if ($max_size && $content_size > $max_size) {
   	    LWP::Debug::debug("Aborting because size limit exceeded");
 	    my $tot = $response->header("Content-Length") || 0;
@@ -200,6 +202,7 @@ sub receive {
         LWP::Debug::debug("read " . length($$content) . " bytes");
 	print OUT $$content;
 	$content_size += length($$content);
+	$entry->content_size($content_size); # update persistant size counter
 	close(OUT);
 	if ($max_size && $content_size > $max_size) {
 	    LWP::Debug::debug("Aborting because size limit exceeded");
