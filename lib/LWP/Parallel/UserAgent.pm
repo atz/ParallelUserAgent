@@ -1,5 +1,5 @@
 # -*- perl -*-
-# $Id: UserAgent.pm,v 1.8 1998/09/01 06:43:11 marc Exp $
+# $Id: UserAgent.pm,v 1.10 1998/09/06 23:56:33 marc Exp $
 # derived from: UserAgent.pm,v 1.62 1998/08/04 09:59:36 aas Exp $
 #         and:  ParallelUA.pm,v 1.16 1997/07/23 16:45:09 ahoy Exp $
 
@@ -403,7 +403,28 @@ sub register {
   # a successful connection, but we want to have this info
   # available even when something goes wrong)
   $response->request($request);
-  
+
+=pod
+
+  NOTE: As of ParallelUA v2.36 ftp-handling has been disabled! 
+  Apparently this never really worked properly in the first place, but
+  no one actually used ParallelUA with ftp-requests so far :-) Thanks
+  to Gary Foster for pointing this out. I will disable ftp access
+  until I have figured out why it's not working! Sorry 'bout that.
+
+=cut
+
+  # block ftp requests for now until we've figured out what's wrong there
+  if ( $request->url->scheme eq 'ftp' ){
+    $response->code (&HTTP::Status::RC_NOT_IMPLEMENTED);
+    $response->message ("Broken Implementation for Scheme: ". 
+			$request->url->scheme);
+    Carp::carp "Parallel::UserAgent can not handle ftp-requests for now. Request ignored!";
+    # simulate immediate response from server
+    $self->on_failure ($request, $response);
+    return $response;
+  }
+
   # so far Parallel::UserAgent can handle only http and ftp requests
   # (anybody volunteering to porting the rest of the protocols?!)
   unless ( $request->url->scheme eq 'http' or $request->url->scheme eq 'ftp' ){
@@ -897,13 +918,14 @@ sub wait {
 	    if ($@) {
 	      if ($@ =~ /^timeout/i) {
 		$response->code (&HTTP::Status::RC_REQUEST_TIMEOUT);
-		$response->message ('User-agent timeout');
+		$response->message ('User-agent timeout (syswrite)');
 	      } else {
 		# remove file/line number
 		$@ =~ s/\s+at\s+\S+\s+line\s+\d+\s*//;  
 		$response->code (&HTTP::Status::RC_INTERNAL_SERVER_ERROR);
 		$response->message ($@);
 	      }
+	      $self->on_failure ($request, $response, $entry);	    
 	    }
 	  } else {
 	    # user has to handle any dies, usually timeouts
@@ -957,13 +979,14 @@ sub wait {
 	    if ($@) {
 	      if ($@ =~ /^timeout/i) {
 		$response->code (&HTTP::Status::RC_REQUEST_TIMEOUT);
-		$response->message ('User-agent timeout');
+		$response->message ('User-agent timeout (sysread)');
 	      } else {
 		# remove file/line number
 		$@ =~ s/\s+at\s+\S+\s+line\s+\d+\s*//;  
 		$response->code (&HTTP::Status::RC_INTERNAL_SERVER_ERROR);
 		$response->message ($@);
 	      }
+	      $self->on_failure ($request, $response, $entry);	    
 	    }
 	  } else {
 	    # user has to handle any dies, usually timeouts
@@ -995,27 +1018,8 @@ sub wait {
 	    # read_chunk returns 0 if we reached EOF
 	    $fh_in->remove($socket);
 	    # use protocol dependent method to close connection
-
-	    if ($self->{'use_eval'}) {
-	      eval { 
-		$protocol->close_connection($response, $socket, 
-					    $request, $entry->cmd_socket);
-	      };
-	      if ($@) {
-		if ($@ =~ /^timeout/i) {
-		  $response->code (&HTTP::Status::RC_REQUEST_TIMEOUT);
-		  $response->message ('User-agent timeout');
-		} else {
-		  # remove file/line number
-		  $@ =~ s/\s+at\s+\S+\s+line\s+\d+\s*//;  
-		  $response->code (&HTTP::Status::RC_INTERNAL_SERVER_ERROR);
-		  $response->message ($@);
-		}
-	      }
-	    } else {
-	      $protocol->close_connection($response, $socket, 
-					  $request, $entry->cmd_socket);
-	    }
+	    $protocol->close_connection($response, $socket, 
+					$request, $entry->cmd_socket);	    
 #	    $socket->shutdown(2); # see "man perlfunc" & "man 2 shutdown"
 	    close ($socket);
 	    $socket = undef; # close socket

@@ -1,5 +1,5 @@
 # -*- perl -*-
-# $Id: RobotPUA.pm,v 1.1 1998/03/06 04:59:11 marc Exp $
+# $Id: RobotPUA.pm,v 1.2 1998/09/06 23:56:13 marc Exp $
 
 package LWP::RobotPUA;
 use Exporter();
@@ -18,6 +18,13 @@ __END__
 =head1 NAME
 
 LWP::RobotPUA - Parallel LWP::RobotUA
+
+=head1 SYNOPSIS
+
+  require LWP::RobotPUA;
+  $ua = new LWP::RobotPUA 'my-robot/0.1', 'me@foo.com';
+
+  (see description of LWP::Parallel::RobotUA)
 
 =head1 DESCRIPTION
 

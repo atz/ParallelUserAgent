@@ -1,9 +1,9 @@
 # -*- perl -*-
-# $Id: ParallelUA.pm,v 1.1 1998/03/11 06:23:37 marc Exp $
+# $Id: ParallelUA.pm,v 1.2 1998/09/03 05:46:43 marc Exp $
 
 package Bundle::ParallelUA;
 
-$VERSION = '2.30'; 
+$VERSION = '2.36'; 
 
 1;
 

@@ -28,7 +28,8 @@ sub on_connect {
 sub on_failure {
     my ($self, $request, $response, $entry) = @_;
     print "Failed to connect to ",$request->url,"\n\t",
-          $response->code, ", ", $response->message,"\n";
+          $response->code, ", ", $response->message,"\n"
+	    if $response;
 }
 
 # on_return gets called whenever a connection (or its callback)
@@ -86,6 +87,8 @@ my $reqs = [
 #   HTTP::Request->new('GET', "http://www.foobar.foo/baz/buzz.html"),
 	    # although server exists, file doesn't
 #   HTTP::Request->new('GET', $url."foobar/bar/baz.html"),
+	    # and now for some FTP
+#  HTTP::Request->new('GET', "ftp://localhost/pub/Fig"),
 	    ];
 
 my ($req,$res);

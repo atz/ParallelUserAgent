@@ -1,3 +1,17 @@
+Mon Sep 7 1998 Marc Langheinrich  <marclang@cs.washington.edu>
+
+ o CPAN Release 2.36
+
+ o Fixed bogus version information in LWP::Parallel and Bundle::
+   ParallelUA.(forgot to update $VERSION variable accordingly)
+
+ o Fixed missing SYNOPSIS element in ParallelUA.pm and RobotPUA.pm
+
+ o Blocked ftp-scheme handling since it wasn't working at all. Thanks
+   to Gary Foster for actually being the first person to try using 
+   Paralle::UserAgent with ftp requests. This will hopefully be fixed 
+   in the next release.	
+
 Tue Sep 1 1998 Marc Langheinrich  <marclang@cs.washington.edu>
 
  o CPAN Release 2.35 

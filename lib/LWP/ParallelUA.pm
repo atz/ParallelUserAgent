@@ -1,5 +1,5 @@
 # -*- perl -*-
-# $Id: ParallelUA.pm,v 1.1 1998/03/06 04:57:57 marc Exp $
+# $Id: ParallelUA.pm,v 1.2 1998/09/06 23:56:09 marc Exp $
 
 package LWP::ParallelUA;
 use Exporter();
@@ -18,6 +18,13 @@ __END__
 =head1 NAME
 
 LWP::ParallelUA - Parallel LWP::UserAgent 
+
+=head1 SYNOPSIS
+
+  require LWP::ParallelUA;
+  $ua = LWP::ParallelUA->new();
+
+  (see description of LWP::Parallel::UserAgent)
 
 =head1 DESCRIPTION
 

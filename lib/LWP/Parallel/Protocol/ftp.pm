@@ -1,5 +1,5 @@
 # -*- perl -*-
-# $Id: ftp.pm,v 1.5 1998/09/01 06:41:11 marc Exp $
+# $Id: ftp.pm,v 1.6 1998/09/03 05:47:58 marc Exp $
 # derived from ftp.pm,v 1.24 1998/07/17 10:37:29 aas Exp $
 
 # Implementation of the ftp protocol (RFC 959). We let the Net::FTP
@@ -15,8 +15,9 @@ use HTTP::Response ();
 use LWP::MediaTypes ();
 use File::Listing ();
 
-require LWP::Protocol;
-@ISA = qw(LWP::Protocol);
+require LWP::Parallel::Protocol;
+require LWP::Protocol::ftp;
+@ISA = qw(LWP::Parallel::Protocol LWP::Protocol::ftp);
 
 use strict;
 eval {
@@ -82,9 +83,7 @@ sub handle_connect {
   # taken out some additional variable declarations here, that are now
   # only needed in 'write_request' method.  
 
-  alarm($timeout) if $self->use_alarm and $timeout; # ML
   my $ftp = new Net::FTP $host, Port => $port;
-  alarm(0) if $self->use_alarm; # ML
 
   my $response;
   unless ($ftp) {
@@ -130,9 +129,7 @@ sub write_request {
   # from here on mostly directly clipped from the original
   # Protocol::ftp. Changes are marked with "# ML" comment
 
-  alarm($timeout) if $self->use_alarm and $timeout; # ML
   my $mess = $ftp->message;	# welcome message
-  alarm(0) if $self->use_alarm; # ML
 
   LWP::Debug::debug($mess);
   $mess =~ s|\n.*||s; # only first line left  
@@ -327,13 +324,7 @@ sub read_chunk {
     # read one chunk at a time from $socket
     my $bytes_read;
     # decide whether to use 'read' or 'sysread'
-    if ($self->parallel) {
-      $bytes_read = $data->sysread( $buf, $size );	# IO::Socket
-    } else {
-      alarm($timeout) if $self->use_alarm and $timeout;
-      $bytes_read = $data->read(\$buf, undef, $timeout);	# LWP::Socket
-      alarm(0) if $self->use_alarm;
-    }
+    $bytes_read = $data->sysread( $buf, $size );	# IO::Socket
         
     # parse data from server
     my $retval = $self->receive($arg, $response, \$buf, $entry);
