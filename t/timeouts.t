@@ -31,7 +31,7 @@ if ($D eq 'daemon')
   } else {  
     # I am the testing program
     use Config;
-    open(DAEMON, "$Config{'perlpath'} t/timeouts.t daemon |") or die "Can't exec daemon: $!";
+    open(DAEMON, "$Config{'perlpath'} $0 daemon |") or die "Can't exec daemon: $!";
   }
 
 sub handle_connection {

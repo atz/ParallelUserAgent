@@ -1,8 +1,16 @@
+Sun Jul 18 1999 Marc Langheinrich <marclang@cs.washington.edu>
+
+ o CPAN Release 2.43 
+
+ o Fixed FTP mode and finally unblocked ftp-scheme again :-)
+
+ o Checked against libwww-5.43
+ 
 Thu Apr 15 1999 Marc Langheinrich <marclang@cs.washington.edu>
 
  o CPAN Release 2.41
 
- o Updated changes in libwww-5.41:
+ o Updated changes in libwww-5.42:
      UserAgent.pm: 1.64 -> 1.66
      RobotUA.pm:   1.14 -> 1.15
      Protocol.pm:  1.31 -> 1.33

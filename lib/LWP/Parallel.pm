@@ -1,9 +1,9 @@
 # -*- perl -*-
-# $Id: Parallel.pm,v 1.10 1999/04/19 00:36:11 marc Exp $
+# $Id: Parallel.pm,v 1.12 1999/07/18 04:52:16 marc Exp $
 
 package LWP::Parallel;
 
-$VERSION = '2.42';
+$VERSION = '2.43';
 sub Version { $VERSION };
 
 require 5.004;
@@ -230,7 +230,7 @@ comes in.
 	push (@redirects, $res) if $r;
     }
     
-    # summarize response. see "perldoc LWP::Response"
+    # summarize response. see "perldoc HTTP::Response"
     print "Answer for '",$res->request->url, "' was \t", $res->code,": ",
           $res->message,"\n";
     # print redirection history, in case we got redirected

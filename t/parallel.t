@@ -40,7 +40,7 @@ if ($D eq 'daemon') {
     exit;
 } else {
     use Config;
-    open(DAEMON, "$Config{'perlpath'} t/parallel.t daemon |") or die "Can't exec daemon: $!";
+    open(DAEMON, "$Config{'perlpath'} $0 daemon |") or die "Can't exec daemon: $!";
 }
 
 print "1..13\n";

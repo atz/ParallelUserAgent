@@ -1,5 +1,5 @@
 # -*- perl -*-
-# $Id: ftp.pm,v 1.7 1999/01/19 06:36:04 marc Exp $
+# $Id: ftp.pm,v 1.8 1999/07/18 04:07:19 marc Exp $
 # derived from ftp.pm,v 1.25 1998/11/19 21:45:01 aas Exp $
 
 # Implementation of the ftp protocol (RFC 959). We let the Net::FTP
@@ -181,7 +181,7 @@ sub write_request {
 	if ($mod_time <= $ims) {
 	  $response->code(&HTTP::Status::RC_NOT_MODIFIED);
 	  $response->message("Not modified");
-	  return $response;
+	  return (undef, $response);
 	}
       }
     }
@@ -214,7 +214,7 @@ sub write_request {
       # It should now be safe to try to list the directory
       LWP::Debug::debug("dir");
       my @lsl = $ftp->dir;
-      
+
       # Try to figure out if the user want us to convert the
       # directory listing to HTML.
       my @variants =
@@ -253,8 +253,10 @@ sub write_request {
       $response->header('Content-Length', length($content));
 
       if ($method ne 'HEAD') {
-	$self->receive_once($arg, $response, $content);
-	return (undef, $response);
+	# $self->receive_once($arg, $response, $content);
+        # calling receive_once is now done in UserAgent.pm #ML 7/99
+	# here we just add the content to the response:
+	$response->content($content);
       }
     } else {
       my $res = new HTTP::Response &HTTP::Status::RC_BAD_REQUEST,

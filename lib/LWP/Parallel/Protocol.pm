@@ -1,5 +1,5 @@
 #  -*- perl -*-
-# $Id: Protocol.pm,v 1.3 1999/04/16 04:08:47 marc Exp $
+# $Id: Protocol.pm,v 1.4 1999/07/18 04:03:04 marc Exp $
 # derived from: Protocol.pm,v 1.33 1999/03/19 21:46:41 gisle Exp $
 
 package LWP::Parallel::Protocol;
@@ -37,7 +37,7 @@ methods and functions are provided:
 
 require LWP::Protocol;
 @ISA = qw(LWP::Protocol);
-$VERSION = sprintf("%d.%02d", q$Revision: 1.3 $ =~ /(\d+)\.(\d+)/);
+$VERSION = sprintf("%d.%02d", q$Revision: 1.4 $ =~ /(\d+)\.(\d+)/);
 
 
 use HTTP::Status ();
@@ -151,6 +151,20 @@ function.
 sub receive {
     my ($self, $arg, $response, $content, $entry) = @_;
 
+  LWP::Debug::trace("( [self]" .
+                    ", ". (defined $arg ? $arg : '[undef]') . 
+                    ", ". (defined $response ? $response->code . " " .
+                                               $response->message 
+                                                : '[undef]') .
+                    ", ". (defined $content ? 
+		           (ref($content) eq 'SCALAR'? 
+			       length($$content) . " bytes" 
+			       : '[ref('. ref($content) .')' )
+                            : '[undef]') . 
+                    ", ". (defined $entry ? $entry : '[undef]') . 
+                    ")");
+
+
     my($use_alarm, $parse_head, $timeout, $max_size, $parallel) =
       @{$self}{qw(use_alarm parse_head timeout max_size parallel)};
 
@@ -181,7 +195,8 @@ sub receive {
 	$content_size += length($$content);
 	$entry->content_size($content_size); # update persistant size counter
 	if ($max_size && $content_size > $max_size) {
-  	    LWP::Debug::debug("Aborting because size limit exceeded");
+  	    LWP::Debug::debug("Aborting because size limit of " .
+	                      "$max_size bytes exceeded");
 	    my $tot = $response->header("Content-Length") || 0;
 	    $response->header("X-Content-Range", "bytes 0-$content_size/$tot");
 	    return 0;

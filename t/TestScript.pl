@@ -53,27 +53,29 @@ use HTTP::Request;
 require WWW::RobotRules::AnyDBM_File;
 
 # display tons of debugging messages. See 'perldoc LWP::Debug'
-#use LWP::Debug qw(+);
+# use LWP::Debug qw(+);
 
 # shortcut for demo URLs
-my $url = "http://localhost/index.html"; 
+#my $url = "http://localhost/index.html"; 
 #my $url = "http://localhost/test.tar.gz"; 
+#my $ftp_url = "ftp://localhost/pub/";
+
+my $url = "http://www.cs.washington.edu/"; 
+my $ftp_url = "ftp://ftp.cdrom.com/pub/linux/redhat/";
 
 # comment out what you want to try:
 my $reqs = [  
 	    # 'nice' URLs - these should all work
      HTTP::Request->new('GET', $url),
-#     HTTP::Request->new('GET', $url."homes/marclang/"),
-#     HTTP::Request->new('GET', "ftp://ftp.spu.edu/"),
-#    HTTP::Request->new('GET', "ftp://ftp.spu.edu/README.html"),
-#    HTTP::Request->new('GET', "ftp://ftp.spu.edu/HEADER.html"),
-#    HTTP::Request->new('GET', $url."homes/marclang/resume.html"),
+     HTTP::Request->new('GET', $url."homes/marclang/"),
+     HTTP::Request->new('GET', $ftp_url),
+     HTTP::Request->new('GET', $ftp_url."redhat-6.0/"),
+     HTTP::Request->new('GET', $ftp_url."redhat-6.0/ls-lR"),
 	    # and now for some duplicates. depending on how you set
             # 'handle_duplicates', they should either be connected 
             # or ignored.
 #   HTTP::Request->new('GET', $url),
 #   HTTP::Request->new('GET', $url."homes/marclang/"),
-#   HTTP::Request->new('GET', $url."homes/marclang/resume.html"),
 	    # these are all redirects. depending on how you set
             # 'redirect_ok' they either just return the status code for
             # redirect (like 302 moved), or continue to follow redirection.
@@ -109,8 +111,8 @@ $pua->redirect  (1);  # follow redirects
 $pua->delay    ( 1);  # in seconds
 $pua->max_req  ( 1);  # max parallel requests per server
 $pua->max_hosts(10);  # max parallel servers accessed
-
-$pua->max_size(5000);
+$pua->env_proxy;
+$pua->max_size(20000);
 
 # for our own print statements that follow below:
 local($\) = ""; # ensure standard $OUTPUT_RECORD_SEPARATOR
@@ -168,7 +170,9 @@ foreach (keys %$entries) {
     
     # summarize response. see "perldoc LWP::Response"
     print "Answer for '",$res->request->url, "' was \t", $res->code,": ",
-          $res->message,"\n";
+          $res->message,  " [", length($res->content) , " bytes]\n";
+    # print $res->content, "\n";
+
     # print redirection history, in case we got redirected
     foreach (@redirects) {
 	print "\t",$_->request->url, "\t", $_->code,": ", $_->message,"\n";

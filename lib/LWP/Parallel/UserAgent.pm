@@ -1,5 +1,5 @@
 # -*- perl -*-
-# $Id: UserAgent.pm,v 1.19 1999/04/19 00:39:30 marc Exp $
+# $Id: UserAgent.pm,v 1.20 1999/07/18 04:26:01 marc Exp $
 # derived from: UserAgent.pm,v 1.66 1999/03/20 07:37:36 gisle Exp $
 #         and:  ParallelUA.pm,v 1.16 1997/07/23 16:45:09 ahoy Exp $
 
@@ -405,27 +405,6 @@ sub register {
   # a successful connection, but we want to have this info
   # available even when something goes wrong)
   $response->request($request);
-
-=pod
-
-  NOTE: As of ParallelUA v2.36 ftp-handling has been disabled! 
-  Apparently this never really worked properly in the first place, but
-  no one actually used ParallelUA with ftp-requests so far :-) Thanks
-  to Gary Foster for pointing this out. I will disable ftp access
-  until I have figured out why it's not working! Sorry 'bout that.
-
-=cut
-
-  # block ftp requests for now until we've figured out what's wrong there
-  if ( $request->url->scheme eq 'ftp' ){
-    $response->code (&HTTP::Status::RC_NOT_IMPLEMENTED);
-    $response->message ("Broken Implementation for Scheme: ". 
-			$request->url->scheme);
-    Carp::carp "Parallel::UserAgent can not handle ftp-requests for now. Request ignored!";
-    # simulate immediate response from server
-    $self->on_failure ($request, $response);
-    return $response;
-  }
 
   # so far Parallel::UserAgent can handle only http and ftp requests
   # (anybody volunteering to porting the rest of the protocols?!)
@@ -972,6 +951,18 @@ sub wait {
 	    $entry->response->request($request);
 	    LWP::Debug::trace('Error while issuing request '.
 			      $request->url->as_string);
+	  } elsif ($response) {
+            # successful response already?
+	    LWP::Debug::trace('Fast response for request '.
+			      $request->url->as_string . 
+			      ' ['. length($response->content) . 
+			      ' bytes]');
+	    $entry->response($response);
+	    $entry->response->request($request);
+	    my $content = $response->content;
+	    $response->content(''); # clear content here, so that it
+	                            # can be properly processed by ->receive
+	    $protocol->receive_once($arg, $response, $content, $entry);
 	  }
 	  # one write is (should be?) enough
 	  delete $self->{'entries_by_sockets'}->{$socket};

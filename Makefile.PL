@@ -1,10 +1,10 @@
 # This -*- perl -*- script writes the Makefile for LWP::Parallel
-# $Id: Makefile.PL,v 1.7 1999/04/15 02:12:30 marc Exp $
+# $Id: Makefile.PL,v 1.8 1999/07/18 04:52:09 marc Exp $
 use ExtUtils::MakeMaker;
 
 print "Checking your version of libwww...";
 my $required  = "5.41";
-my $supported = "5.42";
+my $supported = "5.43";
 my $version;
 eval {
     require LWP;
