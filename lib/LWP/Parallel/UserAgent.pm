@@ -1,5 +1,5 @@
 # -*- perl -*-
-# $Id: UserAgent.pm,v 1.20 2000/04/20 14:49:17 langhein Exp $
+# $Id: UserAgent.pm,v 1.21 2000/05/08 13:02:29 langhein Exp $
 # derived from: UserAgent.pm,v 1.66 1999/03/20 07:37:36 gisle Exp $
 #         and:  ParallelUA.pm,v 1.16 1997/07/23 16:45:09 ahoy Exp $
 
@@ -68,6 +68,8 @@ sub AUTOLOAD {
 	return $self->{$name};
     }
 }
+
+sub DESTROY { };
 
 package LWP::Parallel::UserAgent;
 

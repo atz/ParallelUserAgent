@@ -1,3 +1,10 @@
+Mon May 08 2000 Marc Langheinrich <marclang@cs.washington.edu>
+
+ o CPAN Release 2.48a
+
+ o Added (empty) DESTROY method to Parallel::UserAgent::Entry in 
+   order to please perl5.6
+   
 Wed Apr 19 2000 Marc Langheinrich <marclang@cs.washington.edu>
 
  o CPAN Release 2.48
