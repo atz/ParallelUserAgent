@@ -1,82 +1,27 @@
 $| = 1; # autoflush
 
 $DEBUG = 0;
-$NONBLOCK = 0; # set to 1 to try out non-blocking connects (new in 2.51)
-# use LWP::Debug qw(+debug +trace);
-
 
 # uncomment the following line if you want to run these tests from the command
 # line using the local version of Parallel::UserAgent (otherwise perl will take
 # the already installed version):
-use lib ('./lib');
+# use lib ('./lib');
 
-# First we create HTTP server for testing our http protocol
-# (this is stolen from the libwww t/local/http.t file)
-
-require IO::Socket;  # make sure this work before we try to make a HTTP::Daemon
-
-# First we make ourself a daemon in another process
-my $D = shift || '';
-if ($D eq 'daemon') {
-
-    require HTTP::Daemon;
-
-    my $d = new HTTP::Daemon Timeout => 10;
-
-    print "Please to meet you at: <URL:", $d->url, ">\n";
-    open(STDOUT, ">/dev/null");
-
-    while ($c = $d->accept) {
-	$r = $c->get_request;
-	if ($r) {
-	    my $p = ($r->url->path_segments)[1];
-	    my $func = lc("httpd_" . $r->method . "_$p");
-	    if (defined &$func) {
-		&$func($c, $r);
-	    } else {
-		$c->send_error(404);
-	    }
-	}
-	$c = undef;  # close connection
-    }
-    print STDERR "HTTP Server terminated\n" if $DEBUG;
-    exit;
-} else {
-    use Config;
-    open(DAEMON, "$Config{'perlpath'} t/parallel.t daemon |") or die "Can't exec daemon: $!";
-}
-
-print "1..13\n";
-
-my $greeting = <DAEMON>;
-$greeting =~ /(<[^>]+>)/;
-
-require URI;
-my $base = URI->new($1);
-sub url {
-   my $u = URI->new(@_);
-   $u = $u->abs($_[1]) if @_ > 1;
-   $u->as_string;
-}
-
-print "Will access HTTP server at $base\n";
-
-# do tests from here on
-
-#use LWP::Debug qw(+);
+print "1..4\n";
 
 require LWP::Parallel::UserAgent;
 require HTTP::Request;
 my $ua = new LWP::Parallel::UserAgent;
 $ua->agent("Mozilla/0.01 " . $ua->agent);
 $ua->from('marclang@cpan.org');
-$ua->nonblock($NONBLOCK);  
 
+my $pwd = `pwd`;
+chomp $pwd;
 
 #---------------------------------------------------------------
 print "\nLWP::Parallel::UserAgent interface...";
 print "\nSingle bad request..\n";
-$req = new HTTP::Request GET => url("/not_found", $base);
+$req = new HTTP::Request GET => "file:$pwd/not_found";
 $req->header(X_Foo => "Bar");
 
 print STDERR "\tRegistering '".$req->url."'\n" if $DEBUG;
@@ -97,79 +42,63 @@ foreach (keys %$entries) {
 
     print "not " unless $res->is_error
                         and $res->code == 404
-                        and $res->message =~ /not\s+found/i;
+                        and $res->message =~ /not\s+exist/i;
 
     print "ok 2\n";
-    print "not " if !$res->server and !$res->date;
-    print "ok 3\n";
 }
 
 #----------------------------------------------------------------
 print "\nMultiple Requests...\n";
-sub httpd_get_page0
-{
-    my($c) = @_;
-    $c->send_basic_header(200);
-    print $c "Content-Type: text/plain\015\012";
-    $c->send_crlf;
-    print $c "This is page 0";
-}
 
-sub httpd_get_page1
-{
-    my($c) = @_;
-    $c->send_basic_header(200);
-    print $c "Content-Type: text/plain\015\012";
-    $c->send_crlf;
-    print $c "This is page 1";
-}
-
-sub httpd_get_page2
-{
-    my($c) = @_;
-    $c->send_basic_header(200);
-    print $c "Content-Type: text/plain\015\012";
-    $c->send_crlf;
-    print $c "This is page 2";
+# first five files from directory for testing
+opendir (DIR, $pwd) or die "Can't open $pwd: $!";
+my %files;
+while (defined ($file = readdir(DIR))) {
+   next unless (-f "$pwd/$file");
+   open (FILE, "$pwd/$file") or die "Can't open $pwd/$file: $!";
+   $files{$file} = join ('', <FILE>);
+   close (FILE);
 }
 
 $ua->initialize;
-for $i (0..11) {
-    my $page = $i % 3;
-    $req = new HTTP::Request GET => url("/page$page", $base);
+for (0..10) { # read every file 10 times
+  foreach (keys %files) {
+    $req = new HTTP::Request GET => "file:$pwd/$_";
     print STDERR "\tRegistering '".$req->url."'\n" if $DEBUG;
     if ( $res = $ua->register ($req) ) { 
 	print STDERR $res->error_as_HTML;
 	print "not";
 	last;
     } 
+  }
 }
-print "ok 4\n";
+print "ok 3\n";
 
 $entries = $ua->wait(5);
 foreach (keys %$entries) {
     $res = $entries->{$_}->response;
     my $url = $res->request->url;
-    $url =~ /([0-9]+)$/;
-    my $num = $1;
+    my $file = $url->as_string;
+    $file =~ s/^.*\///;
 
-    print STDERR "Answer for '$url' was \n\t", 
-          $res->code,": ", $res->message," \"", $res->content, "\"\n"
+    print STDERR "Answer for '$url' was \"", 
+          $res->code,": ", $res->message,"\"\n"
 	      if $DEBUG;
 
-    unless ( $res->content =~ /This is page $num/ ) {
+    unless ( $res->content eq $files{$file} ) {
 	print "not ";
 	last;
     }
 }
-print "ok 5\n";
+print "ok 4\n";
 
+__END__
 #----------------------------------------------------------------
 print "\nLarger number of requests (40)..\n";
 
 $ua->initialize;
 
-for $i (0..40) {
+for (0..40) {
     my $page = $i % 3;
     $req = new HTTP::Request GET => url("/page$page", $base);
     print STDERR "\tRegistering '".$req->url."'\n" if $DEBUG;
@@ -219,7 +148,7 @@ sub httpd_get_redirect
    $c->send_redirect("/echo/redirect");
 }
 
-print "Check redirect on/off...\n";
+print "\nCheck redirect on/off...\n";
 
 $ua->initialize;
 $ua->redirect(1);
@@ -263,6 +192,42 @@ if ( $res = $ua->register ($req) ) {
 	last;
     }
 }
+
+#----------------------------------------------------------------
+print "\nTesting ordered connections...\n";
+
+my $order_num = 0;
+my @order_history = ();
+sub httpd_get_num
+{
+    my($c, $req) = @_;
+    my $num = $req->url->fragment;
+    push @order_history, $num;
+    my $msg = "Request History: ". join (", ", @order_history) . "\n"; 
+
+    $c->send_basic_header(200);
+    print $c "Content-Type: text/plain\015\012";
+    $c->send_crlf;
+}
+
+package main;
+
+my $uao = new myPUA { 'handle_in_order' => 0 };
+
+for (0..40) {
+  $req = new HTTP::Request GET => url("/num?$_", $base);
+  print STDERR "\tRegistering '".$req->url."'\n" if $DEBUG;
+  if ( $res = $uao->register ($req) ) { 
+    print STDERR $res->error_as_HTML;
+    print "not";
+  } 
+}
+print "ok 12\n";
+
+$entries = $uao->wait(5);
+
+
+
 #----------------------------------------------------------------
 print "\nTerminating server...\n";
 sub httpd_get_quit
@@ -278,7 +243,7 @@ if ( $res = $ua->register ($req) ) {
     print STDERR $res->error_as_HTML;
     print "not";
 } 
-print "ok 12\n";
+print "ok 13\n";
 
 $entries = $ua->wait(5);
 foreach (keys %$entries) {
@@ -290,6 +255,6 @@ foreach (keys %$entries) {
           $res->code,": ", $res->message,"\n" if $DEBUG;
 
     print "not " unless $res->code == 503 and $res->content =~ /Bye, bye/;
-    print "ok 13\n";
+    print "ok 14\n";
 }
 

@@ -1,5 +1,5 @@
 # -*- perl -*-
-# $Id: http.pm,v 1.11 2002/03/28 20:25:44 langhein Exp $
+# $Id: http.pm,v 1.13 2003/03/11 16:49:35 langhein Exp $
 # derived from: http10.pm,v 1.1 2001/10/26 17:27:19 gisle Exp $
 
 package LWP::Parallel::Protocol::http;
@@ -9,6 +9,7 @@ use strict;
 require LWP::Debug;
 require HTTP::Response;
 require HTTP::Status;
+require Net::HTTP;
 require IO::Socket;
 require IO::Select;
 use Carp ();
@@ -44,16 +45,16 @@ sub handle_connect {
     # check method
     my $method = $request->method;
     unless ($method =~ /^[A-Za-z0-9_!\#\$%&\'*+\-.^\`|~]+$/) {  # HTTP token
-	return new HTTP::Response &HTTP::Status::RC_BAD_REQUEST,
+	return (undef, new HTTP::Response &HTTP::Status::RC_BAD_REQUEST,
 				  'Library does not allow method ' .
-				  "$method for 'http:' URLs";
+				  "$method for 'http:' URLs");
     }
 
     my $url = $request->url;
     my($host, $port, $fullpath) = $self->get_address ($proxy, $url, $method);
 
-    # connect to remote site
-    my $socket = $self->connect ($host, $port, $timeout, $nonblock);
+   # connect to remote site
+    my $socket = $self->_connect ($host, $port, $timeout, $nonblock);
 
 #  LWP::Debug::debug("Socket is $socket");
 
@@ -96,7 +97,7 @@ sub get_address {
     ($host, $port, $fullpath);
 }
 
-sub connect {
+sub _connect { # renamed to make clear that this is private sub
     my ($self, $host, $port, $timeout, $nonblock) = @_;
     my ($socket); 
     unless ($nonblock) { 
@@ -145,7 +146,7 @@ sub connect {
 		if $err and $err != $einprogress and $err != $ewouldblock;
       } 
     }
-    # LWP::Debug::debug("Socket is $socket");
+    LWP::Debug::debug("Socket is $socket");
     $socket;
 }
 
@@ -279,7 +280,8 @@ sub read_chunk {
   # have to take the one we created in &write_request?!?
   my $sel = IO::Select->new($socket) if $timeout;
 
-  LWP::Debug::debug('reading response');
+  LWP::Debug::debug('reading response ('. 
+    (defined($pushback{$socket})?length($pushback{$socket}):0) .' buffered)');
 
   my $buf = "";
   # read one chunk at a time from $socket
@@ -307,7 +309,9 @@ sub read_chunk {
       }
   }
 
-  LWP::Debug::conns($buf);
+  # prepend contents of unprocessed buffer content from last read
+  $buf = $pushback{$socket} . $buf if $pushback{$socket};
+  LWP::Debug::conns("Buffer contents between dashes -->\n==========\n$buf==========");
   
   # determine Protocol type and create response object
   unless ($response  and  $response->code) {
@@ -315,7 +319,7 @@ sub read_chunk {
       # HTTP/1.0 response or better
       my($ver,$code,$msg) = ($1, $2, $3);
       $msg =~ s/\015$//;
-      LWP::Debug::debug("$ver $code $msg");
+      LWP::Debug::debug("Identified HTTP Protocol: $ver $code $msg");
       $response->code($code);
       $response->message($msg);
       $response->protocol($ver);
@@ -350,9 +354,10 @@ sub read_chunk {
       # remove one line at a time from the beginning of the header
       # buffer ($buf).
       my($key, $val);
+
       while ($buf =~ s/([^\012]*)\012//) {
 	my $line = $1;
-	
+
 	# if we need to restore as content when illegal headers
 	# are found.
 	my $save = "$line\012"; 
@@ -375,6 +380,7 @@ sub read_chunk {
       # check to see if we have any header at all
       unless (&headers($response)) {
 	# we need at least one header to go on
+        LWP::Debug::debug("no headers found, inserting Client-Date");
 	$response->header ("Client-Date" => 
 			   HTTP::Date::time2str(time));
       }
@@ -382,7 +388,7 @@ sub read_chunk {
   } # of if $response
   
   # if we have both a response AND the headers, start parsing the rest
-  if ( $response && &headers($response) ) {
+  if ( $response && &headers($response) && length($buf)) {
     $self->_get_sock_info($response, $socket); 
     # the CONNECT method does not need to read content
     if ($request->method eq "CONNECT") { # from LWP 5.48's Protocol/http.pm
@@ -390,20 +396,21 @@ sub read_chunk {
     }  
     else {
       # all other methods want to read content, I guess...
-      # Note that we can't use $self->collect, since we don't want to give up
-      # control (by letting Protocol::collect use a $collector callback)
+      # Note that we can't use $self->collect, since we don't want to give
+      # up control (by letting Protocol::collect use a $collector callback)
+      if (my @te = $response->remove_header('Transfer-Encoding')) {
+        $response->push_header('Client-Transfer-Encoding', \@te);
+      }
       my $retval = $self->receive($arg, $response, \$buf, $entry);
-      # A return value lower than zero means a command from our 
-      # callback function. Make sure it reaches ParallelUA:
-      #	return (defined($retval) and (0 > $retval) ? 
-      #		$retval : $n);
-      ## This is all not yet 100% working here I fear... 
-      return (defined $retval? $retval : $n);
+      # update pushback buffer (receive handles _all_ of current buffer)
+      $pushback{$socket} = '';
+      # return length of response read (or value of $retval, if any, which
+      # could be one of C_LASTCON, C_ENDCON, or C_ENDALL)
+      return (defined $retval? $retval : length($buf));
     }
   }
   
-  $pushback{$socket} = $buf if $buf;
-  
+  $pushback{$socket} = $buf;
   return $n;
 }
 

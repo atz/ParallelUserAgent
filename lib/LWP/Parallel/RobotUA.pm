@@ -1,6 +1,6 @@
 # -*- perl -*-
-# $Id: RobotUA.pm,v 1.9 2002/03/28 20:25:43 langhein Exp $
-# derived from: RobotUA.pm,v 1.17 2000/04/09 11:21:11 gisle Exp $
+# $Id: RobotUA.pm,v 1.11 2003/03/11 16:49:26 langhein Exp $
+# derived from: RobotUA.pm,v 1.18 2000/04/09 11:21:11 gisle Exp $
 
 
 package LWP::Parallel::RobotUA;
@@ -8,7 +8,7 @@ package LWP::Parallel::RobotUA;
 use LWP::Parallel::UserAgent qw(:CALLBACK);
 require LWP::RobotUA;
 @ISA = qw(LWP::Parallel::UserAgent LWP::RobotUA Exporter);
-$VERSION = sprintf("%d.%02d", q$Revision: 1.9 $ =~ /(\d+)\.(\d+)/);
+$VERSION = sprintf("%d.%02d", q$Revision: 1.11 $ =~ /(\d+)\.(\d+)/);
 
 @EXPORT = qw(); 
 # callback commands
@@ -18,6 +18,7 @@ $VERSION = sprintf("%d.%02d", q$Revision: 1.9 $ =~ /(\d+)\.(\d+)/);
 use LWP::Debug ();
 require HTTP::Request;
 require HTTP::Response;
+use HTTP::Date qw(time2str);
 use Carp();
 
 use strict;
@@ -30,7 +31,7 @@ LWP::Parallel::RobotUA - A class for Parallel Web Robots
 
   require LWP::Parallel::RobotUA;
   $ua = new LWP::Parallel::RobotUA 'my-robot/0.1', 'me@foo.com';
-  $ua->delay(20);  # in seconds!
+  $ua->delay(0.5);  # in minutes!
   ...
   # just use it just like a normal LWP::Parallel::UserAgent
   $ua->register ($request, \&callback, 4096); # or
@@ -60,7 +61,7 @@ In addition to LWP::Parallel::UserAgent, these methods are provided:
 
 =cut
 
-=head2 $ua = LWP::RobotUA->new($agent_name, $from, [$rules])
+=head2 $ua = LWP::Parallel::RobotUA->new($agent_name, $from, [$rules])
 
 Your robot's name and the mail address of the human responsible for
 the robot (i.e. you) are required by the constructor.
@@ -82,7 +83,8 @@ sub new {
     my $self = new LWP::Parallel::UserAgent;
     $self = bless $self, $class;
 
-    $self->{'delay'} = 60;   # seconds!!
+    $self->{'delay'}     = 1;   # minutes again (used to be seconds)!!
+    $self->{'use_sleep'} = 1;
     $self->{'agent'} = $name;
     $self->{'from'}  = $from;
     # current netloc's we're checking:
@@ -98,12 +100,13 @@ sub new {
     $self;
 }
 
-=head2 $ua->delay([$seconds])
+=head2 $ua->delay([$minutes])
 
 Set/Get the minimum delay between requests to the same server.  The
-default is 60 seconds.
+default is 1 minute.
 
-Note: The original LWP Robot uses I<Minutes> instead of I<Seconds> here!
+Note: Previous versions of LWP Parallel-Robot used I<Seconds> instead of 
+      I<Minutes>! This is now compatible with LWP Robot.
 
 =cut
 
@@ -130,8 +133,7 @@ sub host_wait
     return undef unless defined $netloc;
     my $last = $self->{'rules'}->last_visit($netloc);
     if ($last) {
-	# our self->{delay} holds seconds instead of minutes!
-	my $wait = int($self->{'delay'} - (time - $last));
+	my $wait = int($self->{'delay'} * 60 - (time - $last));
 	$wait = 0 if $wait < 0;
 	return $wait;
     }
@@ -150,7 +152,7 @@ sub as_string
     my $self = shift;
     my @s;
     push(@s, "Robot: $self->{'agent'} operated by $self->{'from'}  [$self]");
-    push(@s, "    Minimum delay: " . int($self->{'delay'}) . "s");
+    push(@s, "    Minimum delay: " . int($self->{'delay'}) . " minutes");
     push(@s, "    Rules = $self->{'rules'}");
     join("\n", @s, '');
 }
@@ -177,9 +179,9 @@ sub _make_connections_in_order {
     while ( $entry = shift @$ordpend_connections ) {
 
 	my $request = $entry->request;
-	my $netloc  = eval { local $SIG{__DIE__}; $request->url->host_port; }
+	my $netloc  = eval { local $SIG{__DIE__}; $request->url->host_port; };
 
-        if ( $remember_failures  and $failed_connections->{$netloc} ) {
+        if ( $remember_failures and $failed_connections->{$netloc} ) {
 	    my $response = $entry->response;
 	    $response->code (&HTTP::Status::RC_INTERNAL_SERVER_ERROR);
 	    $response->message ("Server unavailable");
@@ -236,6 +238,7 @@ sub _make_connections_in_order {
                                             $request->url->host_port; };
 			# unset flag - we're done checking
 			$self->_checking_robots_txt ($netloc, -1);
+		        $rules->visit($netloc);
 
 			my $fresh_until = $robot_res->fresh_until;
 			if ($robot_res->is_success) {
@@ -280,7 +283,11 @@ sub _make_connections_in_order {
 	    
 	    # if so, push on @queue queue
 	    if ($wait) {
-	      LWP::Debug::debug("Must wait $wait more seconds");
+	      LWP::Debug::trace("Must wait $wait more seconds (sleep is ".
+	        ($self->{'use_sleep'} ? 'on' : 'off') . ")");
+	      if ($self->{'use_sleep'}) {
+	        # well, we don't really use sleep, but lets emulate
+		# the standard LWP behavior as closely as possible...
 		push (@queue, $entry);
 		
 		# now we also have to raise a red flag for all
@@ -292,6 +299,13 @@ sub _make_connections_in_order {
 		# request before any of the first x requests
 		# (which is not what we want!)
 		$busy{$netloc}++;
+              } else {
+	        LWP::Debug::debug("'use_sleep' disabled, generating response");
+	        my $res = new HTTP::Response
+	          &HTTP::Status::RC_SERVICE_UNAVAILABLE, 'Please, slow down';
+	        $res->header('Retry-After', time2str(time + $wait));
+	        $entry->response($res);
+	      }
 	    } else { # check bandwith
 		unless ( $self->_check_bandwith($entry) ) {
 		    # if _check_bandwith returns a value, it means that
@@ -299,8 +313,7 @@ sub _make_connections_in_order {
 		    push (@queue, $entry);
 		    $busy{$netloc}++;
 		} else {
-		    $rules->visit($netloc)
-			unless $failed_connections->{$netloc};
+		    $rules->visit($netloc);
 		}
 	    }
 	}
@@ -386,7 +399,6 @@ sub _make_connections_unordered {
 		    # fetch "robots.txt" (i.e. create & issue robot request)
 		    my $robot_url = $request->url->clone;
 		    $robot_url->path("robots.txt");
-		    $robot_url->params(undef);
 		    $robot_url->query(undef);
 		  LWP::Debug::debug("Requesting $robot_url");
 		    
@@ -410,8 +422,8 @@ sub _make_connections_unordered {
                             my $netloc = eval { local $SIG{__DIE__}; 
                                                 $request->url->host_port; };
 			    # unset flag - we're done checking
-			    $self->_checking_robots_txt 
-				($netloc, -1);
+			    $self->_checking_robots_txt ($netloc, -1);
+		            $rules->visit($netloc);
 			    
 			    my $fresh_until = $robot_res->fresh_until;
 			    if ($robot_res->is_success) {
@@ -455,16 +467,25 @@ sub _make_connections_unordered {
 		# silently drop entry here from pending_connections
 	    } elsif ($allowed > 0) {
 		my $netloc = eval { local $SIG{__DIE__}; 
-                                    $request->url->host_port; } # LWP 5.60
+                                    $request->url->host_port; }; # LWP 5.60
 		
 		# check robot-wait information to see if we have to wait
 		my $wait = $self->host_wait($netloc);
 		
 		# if so, push on @$queue queue
 		if ($wait) {
-		  LWP::Debug::debug("Must wait $wait more seconds");
+	          LWP::Debug::trace("Must wait $wait more seconds (sleep is ".
+	            ($self->{'use_sleep'} ? 'on' : 'off') . ")");
+	          if ($self->{'use_sleep'}) {
 		    unshift (@$queue, $entry);
 		    next SERVER;
+		  } else {
+                    LWP::Debug::debug("'use_sleep' disabled");
+	            my $res = new HTTP::Response
+	             &HTTP::Status::RC_SERVICE_UNAVAILABLE, 'Please, slow down';
+	            $res->header('Retry-After', time2str(time + $wait));
+	            $entry->response($res);
+	          }
 		} else { # check bandwith
 		    unless ( $self->_check_bandwith($entry) ) {
 			# if _check_bandwith returns undef, it means that
@@ -476,8 +497,7 @@ sub _make_connections_unordered {
 		    } else {
 			# make sure we update the time of our last
 			# visit to this site properly
-			$rules->visit($netloc)
-			    unless $failed_connections->{$netloc};
+			$rules->visit($netloc);
 		    }
 		}
 	    }
@@ -517,6 +537,9 @@ sub _req_available {
 sub _checking_robots_txt {
     my ($self, $netloc, $lock) = @_;
     local $^W = 0; # prevent warnings here;
+
+    $self->{'checking'}->{$netloc} = 0
+      unless defined ($self->{'checking'}->{$netloc});
 
     if (defined $lock) {
 	$self->{'checking'}->{$netloc} = $lock;

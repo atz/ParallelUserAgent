@@ -1,5 +1,5 @@
 # -*- perl -*-
-# $Id: ftp.pm,v 1.10 2002/03/28 20:25:44 langhein Exp $
+# $Id: ftp.pm,v 1.11 2003/02/19 14:58:37 langhein Exp $
 # derived from: ftp.pm,v 1.31 2001/10/26 20:13:20 gisle Exp
 
 # Implementation of the ftp protocol (RFC 959). We let the Net::FTP
@@ -21,9 +21,66 @@ require LWP::Protocol::ftp;
 
 use strict;
 
-# # removed (ML)
-# eval { ... };
-# my $init_failed = $@;
+eval {
+    package LWP::Parallel::Protocol::MyFTP;
+
+    require Net::FTP;
+    Net::FTP->require_version(2.00);
+
+    use vars qw(@ISA);
+    @ISA=qw(Net::FTP);
+
+    sub new {
+	my $class = shift;
+	LWP::Debug::trace('()');
+
+	my $self = $class->SUPER::new(@_) || return undef;
+
+	my $mess = $self->message;  # welcome message
+	LWP::Debug::debug($mess);
+	$mess =~ s|\n.*||s; # only first line left
+	$mess =~ s|\s*ready\.?$||;
+	# Make the version number more HTTP like
+	$mess =~ s|\s*\(Version\s*|/| and $mess =~ s|\)$||;
+	${*$self}{myftp_server} = $mess;
+	#$response->header("Server", $mess);
+
+	$self;
+    }
+
+    sub http_server {
+	my $self = shift;
+	${*$self}{myftp_server};
+    }
+
+    sub home {
+	my $self = shift;
+	my $old = ${*$self}{myftp_home};
+	if (@_) {
+	    ${*$self}{myftp_home} = shift;
+	}
+	$old;
+    }
+
+    sub go_home {
+	LWP::Debug::trace('');
+	my $self = shift;
+	$self->cwd(${*$self}{myftp_home});
+    }
+
+    sub request_count {
+	my $self = shift;
+	++${*$self}{myftp_reqcount};
+    }
+
+    sub ping {
+	LWP::Debug::trace('');
+	my $self = shift;
+	return $self->go_home;
+    }
+
+};
+my $init_failed = $@;
 
 =item ($socket, $second_arg) = $prot->handle_connect ($req, $proxy, $timeout);
 
@@ -85,6 +142,8 @@ sub handle_connect {
 
   #################
   # new in LWP 5.60
+  my $account = $request->header('Account'); # ML
+
   my $key;
   my $conn_cache = $self->{ua}{conn_cache};
   if ($conn_cache) {
@@ -96,15 +155,15 @@ sub handle_connect {
 		# save it again
 		$conn_cache->deposit("ftp", $key, $ftp);
                 # added $response object # ML
-                my $response =
-                  HTTP::Response->(&HTTP::Status::RC_OK, "Document follows");
+                my $response = 
+                  HTTP::Response->new(&HTTP::Status::RC_OK, "Document follows");
 		return ($ftp, $response);
 	    }
 	}
   }
 
   # try to make a connection
-  my $ftp = LWP::Protocol::MyFTP->new($host,
+  my $ftp = LWP::Parallel::Protocol::MyFTP->new($host,
 					Port => $port,
 					Timeout => $timeout,
 				       );
@@ -114,10 +173,10 @@ sub handle_connect {
   my $response;
   unless ($ftp) {
     $@ =~ s/^Net::FTP: //; # new in LWP 5.60
-    $response = HTTP::Response->(&HTTP::Status::RC_INTERNAL_SERVER_ERROR,$@);
+    $response = HTTP::Response->new(&HTTP::Status::RC_INTERNAL_SERVER_ERROR,$@);
   } else {
     # Create an initial response object
-    $response = HTTP::Response->(&HTTP::Status::RC_OK, "Document follows");
+    $response = HTTP::Response->new(&HTTP::Status::RC_OK, "Document follows");
     #################
     # new in LWP 5.60
     $response->header(Server => $ftp->http_server);
@@ -170,7 +229,7 @@ sub write_request {
     my $mess = scalar($ftp->message);
     LWP::Debug::debug($mess);
     $mess =~ s/\n$//;
-    my $res =  HTTP::Response->new(&HTTP::Status::RC_UNAUTHORIZED, $mess);
+    my $res = HTTP::Response->new(&HTTP::Status::RC_UNAUTHORIZED, $mess);
     $res->header("Server", $ftp->http_server);
     $res->header("WWW-Authenticate", qq(Basic Realm="FTP login"));
     return (undef, $res); # ML
@@ -182,6 +241,12 @@ sub write_request {
   my $home = $ftp->pwd;
   LWP::Debug::debug("home: '$home'");
   $ftp->home($home);
+
+  # ML
+  my $key;
+  $key = "$host:$port:$user";
+  $key .= ":$account" if defined($account);
+  # 
 
   my $conn_cache = $self->{ua}{conn_cache};
   $conn_cache->deposit("ftp", $key, $ftp) if $conn_cache;
@@ -254,7 +319,7 @@ sub write_request {
 	  ($start_byte < 0) || ($start_byte > $end_byte) || ($end_byte < 0))
 	{
 	  return (undef, HTTP::Response->new(&HTTP::Status::RC_BAD_REQUEST,
-	     'Incorrect syntax for Range request');
+	     'Incorrect syntax for Range request'));
 	}
 
 	$max_size = $end_byte-$start_byte;
@@ -262,7 +327,7 @@ sub write_request {
 	$ftp->restart($start_byte);
     } elsif ($request->header('Range') && !$ftp->supported('REST')) {
 	return (undef,HTTP::Response->new(&HTTP::Status::RC_NOT_IMPLEMENTED,
-         "Server does not support resume.");
+         "Server does not support resume."));
     }
     ################
 

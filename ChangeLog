@@ -1,3 +1,79 @@
+Tue Mar 11 2003 Marc Langheinrich <marclang@cpan.org>
+
+ o CPAN Release 2.54_21 (bugfix release)
+
+ o Packaging
+
+Wed Feb 19 2003 Marc Langheinrich <marclang@cpan.org>
+
+ o Release 2.54_20 (beta testing only)
+
+ o bugfix: [Parallel::UserAgent.pm] called _new_response without fully
+   qualifiying the package (should be LWP::UserAgent::_new_response),
+   as this was screwed up in the bugfix in 2.54_19
+ 
+Wed Feb 19 2003 Marc Langheinrich <marclang@cpan.org>
+
+ o Release 2.54_19 (beta testing only)
+ 
+ o rearranged tests and copied LWP's t/TEST file for ease-of-use
+
+ o added local/file tests
+ 
+ o added live tests (mozilla, jigsaw.w3c.org), see t/TEST
+
+ o added [Parallel::Protocol::file.pm] by Jeff Behr
+
+ o added file.pm support to [Parallel::UserAgent.pm]
+
+ o bugfix: [Parallel::Protocol.pm] fixed some LWP::Debug::trace calls
+ 
+ o bugfix: [Parallel::Protocol.pm] receiving into a file would always
+   _append_
+ 
+ o bugfix: [Parallel::UserAgent.pm] called _new_reponse without $self->
+ 
+ o bugfix: [Parallel::UserAgent.pm] _single_request would drop parameters
+   when delegating to ->register
+ 
+ o bugfix: [Parallel::UserAgent.pm] send_request and request would create
+   new useragent, without copying currents ua's settings. now they operate
+   on $self instead (thus retaining all current settings)
+ 
+ o bugfix: [Parallel::RobotUA.pm] fixed syntax errors!! :-(
+ 
+ o bugfix: [Parallel::RobotUA.pm] $rules->visit would not be updated if
+   an earlier visit had failed (even though the current one worked), or
+   if we requested the robots.txt file itself.
+ 
+ o bugfix: [Parallel::RobotUA.pm] added ->use_sleep support
+ 
+ o checked [Parallel::RobotUA] against LWP::RobotUA 1.18
+
+ o updated RobotUA->delay method to use minutes instead of seconds
+   (compatible with LWP::RobotUA behavior)
+
+ o bugfix: [Parallel::Protocol::ftp.pm] fixed HTTP::Response calls (forgot to
+   add "->new", aargh!)
+ 
+ o bugfix: [Parallel::Protocol::ftp.pm] added $key and $account vars to make
+   conn_cache work
+
+ o bugfix: [Parallel::Protocol::ftp.pm] fixed various syntax errors!!! :-|
+
+ o renamed Parallel::Protocol::http::connect method to _connect (to indicate
+   that it's private)
+
+ o bugfix: [Parallel::Protocol::http.pm] handle_connect had wrong return
+
+ o bugfix: [Parallel::Protocol::http.pm] pushback buffer (also spotted by
+   Dongqiang Bai)
+ 
+ o bugfix: [Parallel::Protocol::http.pm] empty buffers passed to ->receive
+
+ o bugfix: [Parallel::Protocol::http.pm] handle_connect had wrong return
+   format
+
 Thu Mar 28 2002 Marc Langheinrich <marclang@cpan.org>
 
  o CPAN Release 2.54

@@ -1,5 +1,5 @@
 #  -*- perl -*-
-# $Id: Protocol.pm,v 1.7 2002/03/28 20:25:43 langhein Exp $
+# $Id: Protocol.pm,v 1.8 2003/02/19 14:58:28 langhein Exp $
 # derived from: Protocol.pm,v 1.39 2001/10/26 19:00:21 gisle Exp
 
 package LWP::Parallel::Protocol;
@@ -37,7 +37,7 @@ methods and functions are provided:
 
 require LWP::Protocol;
 @ISA = qw(LWP::Protocol);
-$VERSION = sprintf("%d.%02d", q$Revision: 1.7 $ =~ /(\d+)\.(\d+)/);
+$VERSION = sprintf("%d.%02d", q$Revision: 1.8 $ =~ /(\d+)\.(\d+)/);
 
 
 use HTTP::Status ();
@@ -108,12 +108,12 @@ sub implementor
     # check we actually have one for the scheme:
     unless (@{"${ic}::ISA"}) { # fixed in LWP 5.48
 	# try to autoload it
-        LWP::Debug::debug("Try autoloading $ic");
+        #LWP::Debug::debug("Try autoloading $ic");
 	eval "require $ic";
 	if ($@) {
 	    if ($@ =~ /Can't locate/) { #' #emacs get confused by '
 		$ic = '';
-	    } else {
+	    } else { # this msg never gets to the surface - 1002, JB
 		die "$@\n";
 	    }
 	}
@@ -134,7 +134,9 @@ routine, then content is passed to this routine.
 $content must be a reference to a scalar holding the content that
 should be processed.
 
-The return value from receive() is the $response object reference.
+The return value from receive() is undef for errors, positive for
+non-zero content processed, 0 for forced EOFs, and potentially a
+negative command from a user-defined callback function.
 
 B<Note:> We will only use the file or callback argument if
 $response->is_success().  This avoids sendig content data for
@@ -148,8 +150,11 @@ sub receive {
 
   LWP::Debug::trace("( [self]" .
                     ", ". (defined $arg ? $arg : '[undef]') . 
-                    ", ". (defined $response ? $response->code . " " .
-                                               $response->message 
+                    ", ". (defined $response ? 
+		            (defined $response->code ? 
+			      $response->code : '???') . " " .
+                            (defined $response->message ?
+			      $response->message : 'undef')
                                                 : '[undef]') .
                     ", ". (defined $content ? 
 		           (ref($content) eq 'SCALAR'? 
@@ -196,22 +201,28 @@ sub receive {
 	    $response->push_header("Client-Aborted", "max_size");
 	    #my $tot = $response->header("Content-Length") || 0;
 	    #$response->header("X-Content-Range", "bytes 0-$content_size/$tot");
-	    return 0;
+	    return 0; # EOF (kind of)
 	} 
     }
     elsif (!ref($arg)) {
 	# Mmmh. Could this take so long that we want to use alarm here?
-	unless ( open(OUT, ">>$arg") ) {
+	my $file_open;
+	if (defined ($entry->content_size) and ($entry->content_size > 0)) {
+	  $file_open = open(OUT, ">>$arg"); # we already have data: append
+	} else { 
+	  $file_open = open(OUT, ">$arg");  # no content received: open new
+	}
+	unless ( $file_open ) {
 	    $response->code(&HTTP::Status::RC_INTERNAL_SERVER_ERROR);
 	    $response->message("Cannot write to '$arg': $!");
-	    return;
+	    return; # undef means error
 	}
         binmode(OUT);
         local($\) = ""; # ensure standard $OUTPUT_RECORD_SEPARATOR
 	if ($parser) {
 	    $parser->parse($$content) or undef($parser);
 	}
-        LWP::Debug::debug("read " . length($$content) . " bytes");
+        LWP::Debug::debug("[FILE] read " . length($$content) . " bytes");
 	print OUT $$content;
 	$content_size += length($$content);
 	$entry->content_size($content_size); # update persistant size counter
@@ -229,7 +240,7 @@ sub receive {
 	if ($parser) {
 	    $parser->parse($$content) or undef($parser);
 	}
-        LWP::Debug::debug("read " . length($$content) . " bytes");
+        LWP::Debug::debug("[CODE] read " . length($$content) . " bytes");
 	my $retval;
 	eval {
 	    $retval = &$arg($$content, $response, $self, $entry);
@@ -248,7 +259,7 @@ sub receive {
 	$response->code(&HTTP::Status::RC_INTERNAL_SERVER_ERROR);
 	$response->message("Unexpected collect argument  '$arg'");
     }
-    return;
+    return length($$content); # otherwise return size of content processed
 }
 
 =item $prot->receive_once($arg, $response, $content, $entry)
@@ -267,7 +278,7 @@ sub receive_once {
     my $retval = $self->receive($arg, $response, \$content, $entry);
 
     # and immediately simulate EOF
-    my $no_content = '';  # trick my emacs highlight package
+    my $no_content = '';  
     $retval = $self->receive($arg, $response, \$no_content, $entry) 
 	unless $retval;
 

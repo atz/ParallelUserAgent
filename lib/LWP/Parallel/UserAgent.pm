@@ -1,5 +1,5 @@
 # -*- perl -*-
-# $Id: UserAgent.pm,v 1.27 2002/03/28 20:25:43 langhein Exp $
+# $Id: UserAgent.pm,v 1.30 2003/03/11 16:49:26 langhein Exp $
 # derived from: UserAgent.pm,v 2.1 2001/12/11 21:11:29 gisle Exp $
 #         and:  ParallelUA.pm,v 1.16 1997/07/23 16:45:09 ahoy Exp $
 
@@ -185,13 +185,13 @@ sub new {
     $self = bless $self, $class;
 
     # handle responses per default
-    $self->{'handle_response'} 	= 1;
+    $self->{'handle_response'} 	 = 1;
     # do not perform nonblocking connects per default
     $self->{'nonblock'} = 0;
     # don't handle duplicates per default
     $self->{'handle_duplicates'} = 0;
     # do not use ordered lists per default
-    $self->{'handle_in_order'} = 0;
+    $self->{'handle_in_order'}   = 0;
     # do not cache failed connection attempts
     $self->{'remember_failures'} = 0;
 
@@ -229,7 +229,7 @@ sub initialize {
     $self->{'current_connections'} = {}; # hash
     $self->{'pending_connections'} = {}; # hash (of [] arrays)
     $self->{'ordpend_connections'} = []; # array
-    $self->{'failed_connections'}   = {}; # hash
+    $self->{'failed_connections'}  = {}; # hash
 
     # duplicates
     $self->{'seen_request'} = {};
@@ -297,9 +297,9 @@ in an apparently random order.
 =cut
 
 sub in_order {
-    my $self = shift;
+  my $self = shift;
   LWP::Debug::trace("($_[0])");
-    $self->{'handle_in_order'} = $_[0]  if defined $_[0];
+  $self->{'handle_in_order'} = $_[0]  if defined $_[0];
 }
 
 =item $ua->remember_failures ( $yes )
@@ -410,7 +410,7 @@ sub register {
 
   unless (ref($request) and $request->can('url')) {
     Carp::carp "Can't use '$request' as an HTTP::Request object. Ignoring";
-    return _new_response($request, &HTTP::Status::RC_NOT_IMPLEMENTED,
+    return LWP::UserAgent::_new_response($request, &HTTP::Status::RC_NOT_IMPLEMENTED,
 		               "Unknown request type: '$request'");
   }
   LWP::Debug::debug("(".$request->url->as_string .
@@ -429,11 +429,14 @@ sub register {
   # available even when something goes wrong)
   $response->request($request);
 
-  # so far Parallel::UserAgent can handle only http and ftp requests
+  # so far Parallel::UserAgent can handle http, ftp, and file requests
   # (anybody volunteering to porting the rest of the protocols?!)
   unless ( $request->url->scheme eq 'http' or $request->url->scheme eq 'ftp'
            # https suggestion by <mszabo@coralwave.com>
-           or $request->url->scheme eq 'https' ){
+           or $request->url->scheme eq 'https'
+	   # file scheme implementation by
+	   or $request->url->scheme eq 'file'
+	   ){
     $response->code (&HTTP::Status::RC_NOT_IMPLEMENTED);
     $response->message ("Unknown Scheme: ". $request->url->scheme);
     Carp::carp "Parallel::UserAgent can not handle '". $request->url->scheme .
@@ -443,7 +446,7 @@ sub register {
     return $response;
   }	
   
-  my $netloc = $request->url->host_port; # eg www.cs.washington.edu:8001
+  my $netloc = $self->_netloc($request->url); 
   
   # check if we already tried to connect to this location, and failed
   if ( $remember_failures  and  $failed_connections->{$netloc} ) {
@@ -516,6 +519,23 @@ sub register {
   return;
 }
 
+# Create a netloc from the url or return an alias netloc for file: proto
+# Fix netloc for file: reqs to generic localhost.file - this can be changed
+# if necessary.  Test to ensure url->scheme doesn't return undef (JB)
+sub _netloc {
+    my $self = shift;
+    my $url = shift;
+
+    my $netloc;
+    if ($url->scheme eq 'file') {
+      $netloc = 'localhost.file';
+    } else {
+      $netloc = $url->host_port; # eg www.cs.washington.edu:8001
+    }
+    $netloc;
+}
+
+
 # this method will take the pending entries one at a time and
 # decide wether we have enough bandwith (as specified by the
 # values in 'max_req' and 'max_hosts') to connect this request.
@@ -537,7 +557,7 @@ sub _make_connections_in_order {
   my ($entry, @queue, %busy);
   # get first entry from pending connections
   while ( $entry = shift @{ $self->{'ordpend_connections'} } ) {
-    my $netloc = $entry->request->url->host_port;
+    my $netloc = $self->_netloc($entry->request->url);
     push (@queue, $entry), next  if $busy{$netloc};
     unless ($self->_check_bandwith($entry)) {
       push (@queue, $entry);
@@ -595,16 +615,15 @@ sub _check_bandwith {
     
     my ($request, $response) = ($entry->request, $entry->response);
     my $url  = $request->url;
+    my $netloc = $self->_netloc($url);
 
-    if ( $remember_failures and $failed_connections->{$url->host_port} ) {
+    if ( $remember_failures and $failed_connections->{$netloc} ) {
 	$response->code (&HTTP::Status::RC_INTERNAL_SERVER_ERROR);
 	$response->message ("Server unavailable");
 	# simulate immediate response from server
 	$self->on_failure ($request, $response, $entry);
 	return 1;
     }
-
-    my $netloc = $url->host_port;
 
     if ( $self->_active ($netloc) ) {
 	if ( $self->_req_available ( $url ) ) {
@@ -627,6 +646,7 @@ sub _check_bandwith {
 	    $self->{'current_connections'}->{$netloc}++;
 	} else {
 	    # calling ->on_failure is done within ->_connect
+	    LWP::Debug::debug ("Failed connection for '" . $netloc ."'");
 	    $self->{'failed_connections'}->{$netloc}++;
 	}
     } else {
@@ -645,7 +665,7 @@ sub _active { shift->{'current_connections'}->{$_[0]}; };
 # request-slots available at netloc
 sub _req_available { 
     my ( $self, $url ) = @_; 
-    $self->{'max_req'} > $self->_active($url->host_port); 
+    $self->{'max_req'} > $self->_active($self->_netloc($url)); 
 };
 # host-slots available
 sub _hosts_available { 
@@ -689,7 +709,7 @@ sub _connect {
 	$response->message ('User-agent timeout');
       } else {
 	# remove file/line number
-	$@ =~ s/\s+at\s+\S+\s+line\s+\d+.*//s;  
+	# $@ =~ s/\s+at\s+\S+\s+line\s+\d+.*//s;  
 	$response->code (&HTTP::Status::RC_INTERNAL_SERVER_ERROR);
 	$response->message ($@);
       }
@@ -747,7 +767,7 @@ sub _remove_current_connection {
   $entry->cmd_socket(undef);
   $entry->listen_socket(undef);
 
-  my $netloc = $entry->request->url->host_port;
+  my $netloc = $self->_netloc($entry->request->url);
   if ( $self->_active ($netloc) ) {
     delete $self->{'current_connections'}->{$netloc}
     unless --$self->{'current_connections'}->{$netloc};
@@ -809,8 +829,10 @@ writing a HUGE if..elsif..else.. branch in this global method.
 sub on_return {
   my ($self, $request, $response, $entry) = @_;
   LWP::Debug::trace("(".join (", ",$request->url->as_string,
-			      $response->code,
-			      $response->message).")");
+			      (defined $response->code ?
+			        $response->code : '[undef]'),
+			      (defined $response->message ?
+			        $response->message : '[undef]')) .")");
 }
 
 =item $us->discard_entry ( $entry )
@@ -926,10 +948,16 @@ sub wait {
 	# WRITE QUEUE
 	#
 	foreach $socket (@$ready_write) {
-
+	  my $so_err;
+	  if ($socket->can("getsockopt")) { # we also might have IO::File!
+            ## check if there is any error (suggested by Mike Heller)
+            $so_err = $socket->getsockopt( Socket::SOL_SOCKET(), 
+	                                   Socket::SO_ERROR() );
+            LWP::Debug::debug( "SO_ERROR: $so_err" ) if $so_err;
+          }
           # modularized this chunk so that it can be reused by 
 	  # POE::Component::Client::UserAgent
-	  $self->_perform_write ($socket, $timeout);
+	  $self->_perform_write ($socket, $timeout) unless $so_err;
 
 	}
 	
@@ -1034,12 +1062,12 @@ sub _perform_write
       # if our call fails, we might not have a $response object, so we
       # have to create a new one here
       if ($@ =~ /^timeout/i) {
-	$response = _new_response($request, &HTTP::Status::RC_REQUEST_TIMEOUT,
+	$response = LWP::UserAgent::_new_response($request, &HTTP::Status::RC_REQUEST_TIMEOUT,
 					'User-agent timeout (syswrite)');
       } else {
 	# remove file/line number
-	$@ =~ s/\s+at\s+\S+\s+line\s+\d+.*//s;  
-	$response = _new_response($request, &HTTP::Status::RC_INTERNAL_SERVER_ERROR,
+	# $@ =~ s/\s+at\s+\S+\s+line\s+\d+.*//s;  
+	$response = LWP::UserAgent::_new_response($request, &HTTP::Status::RC_INTERNAL_SERVER_ERROR,
 					$@);
       }
       $entry->response ($response);
@@ -1072,7 +1100,9 @@ sub _perform_write
     my $content = $response->content;
     $response->content(''); # clear content here, so that it
                             # can be properly processed by ->receive
-    $protocol->receive_once($arg, $response, $content, $entry);
+    unless ($request->method eq 'DELETE') { # JB
+        $protocol->receive_once($arg, $response, $content, $entry);
+    }
   }
   # one write is (should be?) enough
   delete $self->{'entries_by_sockets'}->{$socket};
@@ -1116,7 +1146,7 @@ sub _perform_read
 	$response->message ('User-agent timeout (sysread)');
       } else {
 	# remove file/line number
-	$@ =~ s/\s+at\s+\S+\s+line\s+\d+.*//s;  
+	# $@ =~ s/\s+at\s+\S+\s+line\s+\d+.*//s;  
 	$response->code (&HTTP::Status::RC_INTERNAL_SERVER_ERROR);
 	$response->message ($@);
       }
@@ -1141,15 +1171,15 @@ sub _perform_read
     my $command = $self->on_return ($request, $response, $entry);
     $retval = $command  if defined $command and $command < 0;
     
-    LWP::Debug::debug ("'". (defined $command ? $command : '[undef]').
-		       "' = on_return");
+    LWP::Debug::debug ("received '". (defined $command ? $command : '[undef]').
+		       "' from on_return");
     
   }
 
   if ($retval > 0) { 
     # In this case, just update response entry
     # $entry->response($response);
-  } else { # numeric, that means: EOF, C_LASTCON, or C_ENDCON
+  } else { # zero or negative, that means: EOF, C_LASTCON, C_ENDCON, C_ENDALL
     # read_chunk returns 0 if we reached EOF
     $self->_remove_in_socket($socket);
     # use protocol dependent method to close connection
@@ -1320,12 +1350,12 @@ sub handle_response
 
 # helper function for (simple_)request method.
 sub _single_request {
-  my($ua, $req, $arg, $size, $previous) = @_;
+  my $self = shift;
   my $res;
-  if ( $res = $ua->register ($req) ) { 
+  if ( $res = $self->register (@_) ) { 
     return $res->error_as_HTML;
   }
-  my $entries = $ua->wait(5);
+  my $entries = $self->wait(5);
   foreach (keys %$entries) {
       my $response = $entries->{$_}->response;
 #    $cookie_jar->extract_cookies($response) if $cookie_jar;
@@ -1365,11 +1395,11 @@ object itself.
 sub send_request {
   my $self = shift;
   
-  my $ua = LWP::Parallel::UserAgent->new();
-  $ua->agent($self->agent);
-  $ua->from($self->from);
-  $ua->redirect(0);
-  &_single_request($ua, @_);
+  $self->initialize;
+  my $redirect = $self->redirect(0);
+  my $response = $self->_single_request(@_);
+  $self->redirect($redirect);
+  return $response;
 }
 
 =item $ua->request($request, $arg [, $size])
@@ -1382,14 +1412,16 @@ actually send several different simple reqeusts.
 
 The arguments are the same as for C<simple_request()>.
 
+=cut
+
 sub request {
   my $self = shift;
   
-  my $ua = LWP::Parallel::UserAgent->new();
-  $ua->agent($self->agent);
-  $ua->from ($self->from);
-  $ua->redirect(1);
-  &_single_request($ua, @_);
+  $self->initialize;
+  my $redirect = $self->redirect(1);
+  my $response = $self->_single_request(@_);
+  $self->redirect($redirect);
+  return $response;
 }
 
 =item $ua->as_string
@@ -1419,11 +1451,11 @@ sub init_request {
     LWP::Debug::trace("-> ($request) [$method $url]");
 
     # Check that we have a METHOD and a URL first
-    return _new_response($request, &HTTP::Status::RC_BAD_REQUEST, "Method missing")
+    return LWP::UserAgent::_new_response($request, &HTTP::Status::RC_BAD_REQUEST, "Method missing")
 	unless $method;
-    return _new_response($request, &HTTP::Status::RC_BAD_REQUEST, "URL missing")
+    return LWP::UserAgent::_new_response($request, &HTTP::Status::RC_BAD_REQUEST, "URL missing")
 	unless $url;
-    return _new_response($request, &HTTP::Status::RC_BAD_REQUEST, "URL must be absolute")
+    return LWP::UserAgent::_new_response($request, &HTTP::Status::RC_BAD_REQUEST, "URL must be absolute")
 	unless $url->scheme;
 	
 
@@ -1431,6 +1463,7 @@ sub init_request {
 
     # Locate protocol to use
     my $scheme = '';
+
     my $proxy = $self->_need_proxy($url);
     if (defined $proxy) {
 	$scheme = $proxy->scheme;
@@ -1443,8 +1476,9 @@ sub init_request {
 	$protocol = LWP::Parallel::Protocol::create($scheme);
     };
     if ($@) {
-	$@ =~ s/\s+at\s+\S+\s+line\s+\d+.*//s;  # remove file/line number
-	return _new_response($request, &HTTP::Status::RC_NOT_IMPLEMENTED, $@)
+        # remove file/line number
+	# $@ =~ s/\s+at\s+\S+\s+line\s+\d+.*//s;  
+	return LWP::UserAgent::_new_response($request, &HTTP::Status::RC_NOT_IMPLEMENTED, $@)
     }
 
     # Extract fields that will be used below

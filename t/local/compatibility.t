@@ -4,11 +4,8 @@ my $DEBUG = 0;
 my $CRLF = "\015\012";
 
 #use Data::Dump ();
-
-# uncomment the following line if you want to run these tests from the command
-# line using the local version of Parallel::UserAgent (otherwise perl will take
-# the already installed version):
-#use lib ('./lib');
+#use LWP::Debug qw(+debug +trace +conns);
+#use LWP::Debug qw(+debug);
 
 # First we create HTTP server for testing our http protocol
 # (this is stolen from the libwww t/local/http.t file)
@@ -43,13 +40,12 @@ if ($D eq 'daemon') {
 	$c = undef;  # close connection
     }
     print STDERR "HTTP Server terminated\n" if $DEBUG;
-    exit;
 } else {
     use Config;
-    open(DAEMON, "$Config{'perlpath'} t/compatibility.t daemon |") or die "Can't exec daemon: $!";
+    open(DAEMON, "$Config{'perlpath'} local/compatibility.t daemon |") or die "Can't exec daemon: $!";
 }
 
-print "1..13\n";
+print "1..20\n";
 
 my $greeting = <DAEMON>;
 $greeting =~ /(<[^>]+>)/;
@@ -164,15 +160,12 @@ sub httpd_get_file
 $req = new HTTP::Request GET => url("/file?name=$file", $base);
 $res = $ua->request($req);
 
-#print $res->as_string;
-
 print "not " unless $res->is_success
                 and $res->content_type eq 'text/html'
                 and $res->content_length == 151
 		and $res->title eq 'Test'
 		and $res->content =~ /different, since/;
 print "ok 5\n";		
-
 
 # A second try on the same file, should fail because we unlink it
 $res = $ua->request($req);
@@ -185,7 +178,8 @@ print "ok 6\n";
 $req = new HTTP::Request GET => url("/file?name=.", $base);
 $res = $ua->request($req);
 #print $res->as_string;
-print "not " unless $res->code == 501;   # NYI
+use Data::Dumper;
+print Dumper($res). "\nnot " unless $res->code == 501;   # NYI
 print "ok 7\n";
 
 # =============
@@ -229,6 +223,130 @@ while ($res->previous) {
 print "not " unless $i == 6;
 print "ok 11\n";
 
+#----------------------------------------------------------------
+print "Check basic authorization...\n";
+sub httpd_get_basic
+{
+    my($c, $r) = @_;
+    #print STDERR $r->as_string;
+    my($u,$p) = $r->authorization_basic;
+    if (defined($u) && $u eq 'ok 12' && $p eq 'xyzzy') {
+        $c->send_basic_header(200);
+	print $c "Content-Type: text/plain";
+	$c->send_crlf;
+	$c->send_crlf;
+	$c->print("$u\n");
+    } else {
+        $c->send_basic_header(401);
+	$c->print("WWW-Authenticate: Basic realm=\"libwww-perl\"\015\012");
+	$c->send_crlf;
+    }
+}
+
+{
+   package MyUA; @ISA=qw(LWP::Parallel::UserAgent);
+   sub get_basic_credentials {
+      my($self, $realm, $uri, $proxy) = @_;
+      if ($realm eq "libwww-perl" && $uri->rel($base) eq "basic") {
+	  return ("ok 12", "xyzzy");
+      } else {
+          return undef;
+      }
+   }
+}
+$req = new HTTP::Request GET => url("/basic", $base);
+$res = MyUA->new->request($req);
+#print $res->as_string;
+
+print "not " unless $res->is_success;
+print $res->content;
+
+# Lets try with a $ua that does not pass out credentials
+$res = $ua->request($req);
+print "not " unless $res->code == 401;
+print "ok 13\n";
+
+# Lets try to set credentials for this realm
+$ua->credentials($req->url->host_port, "libwww-perl", "ok 12", "xyzzy");
+$res = $ua->request($req);
+print "not " unless $res->is_success;
+print "ok 14\n";
+
+# Then illegal credentials
+$ua->credentials($req->url->host_port, "libwww-perl", "user", "passwd");
+$res = $ua->request($req);
+print "not " unless $res->code == 401;
+print "ok 15\n";
+
+
+#----------------------------------------------------------------
+print "Check proxy...\n";
+sub httpd_get_proxy_http
+{
+   my($c,$r) = @_;
+   if ($r->method eq "GET" and
+       $r->url->scheme eq "http") {
+       $c->send_basic_header(200);
+       $c->send_crlf;
+   } else {
+       $c->send_error;
+   }
+}
+
+sub httpd_get_proxy_ftp
+{
+   my($c,$r) = @_;
+   if ($r->method eq "GET" and
+       $r->url->scheme eq "ftp") {
+       $c->send_basic_header(200);
+       $c->send_crlf;
+   } else {
+       $c->send_error;
+   }
+}
+
+#use LWP::Debug qw(+debug +trace +conns);
+
+$ua->proxy(ftp => $base);
+$req = new HTTP::Request GET => "ftp://ftp.perl.com/proxy_ftp";
+$res = $ua->request($req);
+#print $res->as_string;
+print "not " unless $res->is_success;
+print "ok 16\n";
+
+$ua->proxy(http => $base);
+$req = new HTTP::Request GET => "http://www.perl.com/proxy_http";
+$res = $ua->request($req);
+#print $res->as_string;
+print "not " unless $res->is_success;
+print "ok 17\n";
+
+$ua->proxy(http => '', ftp => '');
+
+#----------------------------------------------------------------
+print "Check POSTing...\n";
+sub httpd_post_echo
+{
+   my($c,$r) = @_;
+   $c->send_basic_header;
+   $c->print("Content-Type: text/plain");
+   $c->send_crlf;
+   $c->send_crlf;
+   $c->print($r->as_string);
+}
+
+$req = new HTTP::Request POST => url("/echo/foo", $base);
+$req->content_type("application/x-www-form-urlencoded");
+$req->content("foo=bar&bar=test");
+$res = $ua->request($req);
+#print $res->as_string;
+
+$_ = $res->content;
+print "not " unless $res->is_success
+                and /^Content-Length:\s*16$/mi
+		and /^Content-Type:\s*application\/x-www-form-urlencoded$/mi
+		and /^foo=bar&bar=test/m;
+print "ok 18\n";		
 
 #----------------------------------------------------------------
 print "\nTerminating server...\n";
@@ -245,7 +363,7 @@ if ( $res = $ua->register ($req) ) {
     print STDERR $res->error_as_HTML;
     print "not";
 } 
-print "ok 12\n";
+print "ok 19\n";
 
 $entries = $ua->wait(5);
 foreach (keys %$entries) {
@@ -257,5 +375,5 @@ foreach (keys %$entries) {
           $res->code,": ", $res->message,"\n" if $DEBUG;
 
     print "not " unless $res->code == 503 and $res->content =~ /Bye, bye/;
-    print "ok 13\n";
+    print "ok 20\n";
 }
