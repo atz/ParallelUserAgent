@@ -1,0 +1,61 @@
+Fri Mar 27 1998 Marc Langheinrich <marclang@cs.washington.edu>
+
+ o First official CPAN release, version 2.31
+
+ o Updated libwww5.22 bugfixes (one in UserAgent.pm,v 1.59)
+
+ o Checked against libwww-5.22.
+	 
+Fri Mar 13 1998 Marc Langheinrich <marclang@cs.washington.edu>
+
+ o Developer Release 2.3c (pre-release of 2.31)
+
+ o Fixed installation bug in Makefile.PL (LWP uses ->Version method
+   for version checking).
+	
+ o Updated libwww5.21 bugfixes (two in http.pm,v 1.41).
+
+ o Checked against libwww-5.21.
+
+
+Wed Mar 11 1998 Marc Langheinrich <marclang@cs.washington.edu>	
+	
+ o Developer Release 2.3b
+
+ o Added $ua->discard_entry($entry) method. This can be used in 
+   callbacks to discard the entire entry thus freeing up memory.
+
+ o Makefile.PL will check for correct version of LWP.	
+
+ o Fixed some installation glitches.
+	
+
+Fri Mar 6 1998	Marc Langheinrich <marclang@cs.washington.edu>
+
+ o Developer Release 2.3a
+
+ o Moved all modules into the LWP::Parallel subdirectory.
+     
+ o LWP::ParallelUA and LWP::RobotPUA only stubs for 'real' modules
+   underneath LWP::Parallel tree (LWP::Parallel::UserAgent and
+   LWP::Parallel::RobotUA).
+
+ o Parallel::UserAgent, Parallel::RobotUA and Parallel::Protocol now
+   inherent most of their code from the corresponding LWP modules.
+
+ o Added some documentation in Parallel::UserAgent.
+
+ o Added Makefile.PL support (should compile & install now out of
+   the box using the standard sequence "perl Makefile.PL; make;
+   make test; make install").
+
+ o Supplied test script (in t/parallel.t)
+	
+ o Checked against libwww-5.20
+
+	
+Mon Mar 2 1998	Marc Langheinrich <marclang@cs.washington.edu>
+
+ o Created standard perl module package format.
+ 
+ 
