@@ -1,3 +1,11 @@
+Fri May 23 2003 Marc Langheinrich <marclang@cpan.org>
+ 
+ o CPAN Release 2.55 (namefix release: didn't realize PAUSE had some
+   special handling mechanisms for x.yy_zz version names, which resulted
+   in the 2.54_21 release not being indexed)
+
+ o No code changes to 2.54_21!
+
 Tue Mar 11 2003 Marc Langheinrich <marclang@cpan.org>
 
  o CPAN Release 2.54_21 (bugfix release)
