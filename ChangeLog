@@ -1,3 +1,15 @@
+Tue Jan 12 1999 Marc Langheinrich <marclang@cs.washington.edu>
+
+ o CPAN Release 2.40
+
+ o Updated changes in libwww-5.41:
+     UserAgent.pm: 1.62 -> 1.64
+     RobotUA.pm:   1.13 -> 1.14
+     http.pm:      1.43 -> 1.44
+     ftp.pm:       1.24 -> 1.25
+
+ o Fixed '$1' bug in Parallel/Protocol/http.pm	
+	
 Tue Nov 24 1998 Marc Langheinrich <marclang@cs.washington.edu>
 
  o CPAN Release 2.39

@@ -1,13 +1,13 @@
 # -*- perl -*-
-# $Id: RobotUA.pm,v 1.2 1998/03/06 05:01:37 marc Exp $
-# derived from: RobotUA.pm,v 1.13 1998/01/06 09:59:08 aas Exp
+# $Id: RobotUA.pm,v 1.3 1999/01/19 06:35:43 marc Exp $
+# derived from: RobotUA.pm,v 1.14 1998/11/19 21:45:00 aas Exp $
 
 package LWP::Parallel::RobotUA;
 
 use LWP::Parallel::UserAgent qw(:CALLBACK);
 require LWP::RobotUA;
 @ISA = qw(LWP::Parallel::UserAgent LWP::RobotUA Exporter);
-$VERSION = sprintf("%d.%02d", q$Revision: 1.2 $ =~ /(\d+)\.(\d+)/);
+$VERSION = sprintf("%d.%02d", q$Revision: 1.3 $ =~ /(\d+)\.(\d+)/);
 
 @EXPORT = qw(); 
 # callback commands
@@ -176,7 +176,7 @@ sub _make_connections_in_order {
     while ( $entry = shift @$ordpend_connections ) {
 
 	my $request = $entry->request;
-	my $netloc  = $request->url->netloc;
+	my $netloc  = $request->url->host_port;
 
         if ( $remember_failures  and $failed_connections->{$netloc} ) {
 	    my $response = $entry->response;
@@ -211,7 +211,6 @@ sub _make_connections_in_order {
 		# fetch "robots.txt"
 		my $robot_url = $request->url->clone;
 		$robot_url->path("robots.txt");
-		$robot_url->params(undef);
 		$robot_url->query(undef);
 	      LWP::Debug::debug("Requesting $robot_url");
 
@@ -234,17 +233,17 @@ sub _make_connections_in_order {
 			my ($content, $robot_res, $protocol) = @_;
 
 			# unset flag - we're done checking
-			$self->_checking_robots_txt ($request->url->netloc, -1);
+			$self->_checking_robots_txt ($request->url->host_port, -1);
 
 			my $fresh_until = $robot_res->fresh_until;
 			if ($robot_res->is_success) {
 			  LWP::Debug::debug("Parsing robot rules for ". 
-					    $request->url->netloc);
+					    $request->url->host_port);
 			    $rules->parse($robot_url, $robot_res->content, 
 						    $fresh_until);
 			} else {
 			  LWP::Debug::debug("No robots.txt file found at " . 
-					    $request->url->netloc);
+					    $request->url->host_port);
 			    $rules->parse($robot_url, "", $fresh_until);
 			}
 		    },
@@ -357,7 +356,7 @@ sub _make_connections_unordered {
 	      LWP::Debug::debug("Host not visited before, or robots.".
 				"txt expired: ".$request->url);
 		my $checking = $self->_checking_robots_txt 
-		    ($request->url->netloc);
+		    ($request->url->host_port);
 		# let's see if we're already busy checkin' this host
 		if ( $checking > 0 ) {
 		    # if so, don't register yet another robots.txt request!
@@ -401,23 +400,23 @@ sub _make_connections_unordered {
 			    
 			    # unset flag - we're done checking
 			    $self->_checking_robots_txt 
-				($request->url->netloc, -1);
+				($request->url->host_port, -1);
 			    
 			    my $fresh_until = $robot_res->fresh_until;
 			    if ($robot_res->is_success) {
 			      LWP::Debug::debug("Parsing robot rules for ". 
-						$request->url->netloc);
+						$request->url->host_port);
 				$rules->parse($robot_url, $robot_res->content, 
 					      $fresh_until);
 			    } else {
 			      LWP::Debug::debug("No robots.txt file found at ".
-						$request->url->netloc);
+						$request->url->host_port);
 				$rules->parse($robot_url, "", $fresh_until);
 			    }
 			},
 		    };
 		    # mark this host as being checked
-		    $self->_checking_robots_txt ($request->url->netloc, 1);
+		    $self->_checking_robots_txt ($request->url->host_port, 1);
 		    # immediately try to connect (if bandwith available)
 		    unless ( $self->_check_bandwith($robot_entry) ) {
 			unshift (@$queue, $robot_entry);
@@ -436,7 +435,7 @@ sub _make_connections_unordered {
 		$entry->response($res);
 		# silently drop entry here from pending_connections
 	    } elsif ($allowed > 0) {
-		my $netloc = $request->url->netloc;
+		my $netloc = $request->url->host_port;
 		
 		# check robot-wait information to see if we have to wait
 		my $wait = $self->host_wait($netloc);
@@ -481,7 +480,7 @@ sub _make_connections_unordered {
 sub _req_available { 
     my ( $self, $url ) = @_;
     # check if blocked
-    if ( $self->_checking_robots_txt($url->netloc) ) {
+    if ( $self->_checking_robots_txt($url->host_port) ) {
 	return 0;
     } else {
 	# else use superclass method

@@ -48,9 +48,13 @@ print "1..13\n";
 my $greeting = <DAEMON>;
 $greeting =~ /(<[^>]+>)/;
 
-require URI::URL;
-URI::URL->import;
-my $base = new URI::URL $1;
+require URI;
+my $base = URI->new($1);
+sub url {
+   my $u = URI->new(@_);
+   $u = $u->abs($_[1]) if @_ > 1;
+   $u->as_string;
+}
 
 print "Will access HTTP server at $base\n";
 

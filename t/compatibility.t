@@ -5,7 +5,7 @@ $DEBUG = 0;
 # uncomment the following line if you want to run these tests from the command
 # line using the local version of Parallel::UserAgent (otherwise perl will take
 # the already installed version):
-# use lib ('./lib');
+#use lib ('./lib');
 
 # First we create HTTP server for testing our http protocol
 # (this is stolen from the libwww t/local/http.t file)
@@ -18,21 +18,24 @@ if ($D eq 'daemon') {
 
     require HTTP::Daemon;
 
-    my $d = new HTTP::Daemon Timeout => 10;
+    my $d = HTTP::Daemon->new(Timeout => 10);
 
     print "Please to meet you at: <URL:", $d->url, ">\n";
+
     open(STDOUT, ">/dev/null");
 
     while ($c = $d->accept) {
 	$r = $c->get_request;
 	if ($r) {
-	    my $p = ($r->url->path_components)[1];
+	    my $p = ($r->url->path_segments)[1];
 	    my $func = lc("httpd_" . $r->method . "_$p");
 	    if (defined &$func) {
 		&$func($c, $r);
 	    } else {
 		$c->send_error(404);
 	    }
+	} else {
+	  print STDERR "Failed: Reason was '". $c->reason ."'\n";
 	}
 	$c = undef;  # close connection
     }
@@ -48,9 +51,13 @@ print "1..13\n";
 my $greeting = <DAEMON>;
 $greeting =~ /(<[^>]+>)/;
 
-require URI::URL;
-URI::URL->import;
-my $base = new URI::URL $1;
+require URI;
+my $base = URI->new($1);
+sub url {
+   my $u = URI->new(@_);
+   $u = $u->abs($_[1]) if @_ > 1;
+   $u->as_string;
+}
 
 print "Will access HTTP server at $base\n";
 
@@ -70,6 +77,8 @@ print "\nLWP::UserAgent compatibility...\n";
 # ============
 print " - Bad request...\n";
 $req = new HTTP::Request GET => url("/not_found", $base);
+print STDERR "\tRegistering '".$req->url."'\n" if $DEBUG;
+
 $req->header(X_Foo => "Bar");
 $res = $ua->request($req);
 
@@ -77,6 +86,8 @@ print "not " unless $res->is_error
                 and $res->code == 404
                 and $res->message =~ /not\s+found/i;
 print "ok 1\n";
+print STDERR "\tResponse was '".$res->code. " ". $res->message."'\n" if $DEBUG;
+
 # we also expect a few headers
 print "not " if !$res->server and !$res->date;
 print "ok 2\n";
@@ -144,7 +155,7 @@ sub httpd_get_file
     my %form = $r->url->query_form;
     my $file = $form{'name'};
     $c->send_file_response($file);
-    unlink($file);
+    unlink($file) if $file =~ /^test-/;
 }
 
 $req = new HTTP::Request GET => url("/file?name=$file", $base);

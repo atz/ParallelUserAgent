@@ -1,6 +1,6 @@
 # -*- perl -*-
-# $Id: ftp.pm,v 1.6 1998/09/03 05:47:58 marc Exp $
-# derived from ftp.pm,v 1.24 1998/07/17 10:37:29 aas Exp $
+# $Id: ftp.pm,v 1.7 1999/01/19 06:36:04 marc Exp $
+# derived from ftp.pm,v 1.25 1998/11/19 21:45:01 aas Exp $
 
 # Implementation of the ftp protocol (RFC 959). We let the Net::FTP
 # package do all the dirty work.
@@ -151,18 +151,18 @@ sub write_request {
   LWP::Debug::debug($ftp->message);
   
   # Get & fix the path
-  my @path =  $url->path_components;
+  my @path =  $url->path_segments;
   shift(@path);			# There will always be an empty first component
   pop(@path) while @path && $path[-1] eq ''; # remove empty tailing comps
   my $remote_file = pop(@path);
   $remote_file = '' unless defined $remote_file;
   
-  my $params = $url->params;
-  if (defined($params) && $params eq 'type=a') {
-    $ftp->ascii;
-  } else {
+#   my $params = $url->params;
+#   if (defined($params) && $params eq 'type=a') {
+#     $ftp->ascii;
+#   } else {
     $ftp->binary;
-  }
+#  }
   
   for (@path) {
     LWP::Debug::debug("CWD $_");

@@ -45,35 +45,42 @@ that came with libwww5.x. As of version 2.30, PUA will install all of
 its modules into the LWP::Parallel subtree, so that your previous
 libwww installation remains unchanged!
 
-However, it also requires at least version 5.20 of the libwww
-distribution, since it relies on features that were not available in
-earlier versions. If you are using a different version then the ones
-listed below, either upgrade to the newest libwww distribution, or try
-running the testscript ("make test") and see if it tests ok anyways
-:-) 
-
-*** Warning: The newest version of libwww (5.41 and up) breaks a lot
-*** of compatibilities! This version of ParallelUserAgent will not 
-*** work with these new versions! Please use libwww-5.36 or wait until
-*** an update of this package is available!
-
+However, it also requires the latest version of the libwww that it has
+been tested against. Earlier (or later) version might work, too, but
+you are on your own there. If you are using a different version then
+the ones listed below, either upgrade to the latest tested libwww
+distribution, or try running the testscript ("make test") and see if
+it tests ok anyways :-)
 
 Checked versions so far:
-
-*******	libwww-5.41                     not ok! ********
-	libwww-5.20 - 5.36		ok
+	
+	libwww-5.41			use ParallelUA-2.40
+	libwww-5.20 - 5.36		use up to ParallelUA-2.39
 	libwww-5.19			untested
 	libwww-5.18 and below		not ok!
 
-Note: For optimal performance you shoul use the _latest_ version of 
-      libwww-perl that is listed above (i.e. 5.36).
+Note: For optimal performance you shoud use the _latest_ version of BOTH
+      libwww-perl (i.e. 5.41) and ParallelUserAgent (i.e. 2.40).
 
-***** Look into the t/ subdirectory in this distribution for *****
-***** some examples on how to use this library!              *****
+3. How to use it?
+-----------------
+The current distribution unfortunately has very little documentation
+:-( So far I'm happy that I can keep up with Gisle's constant output
+of new versions of libwww and haven't had much time to think about
+proper documentation.
+
+For starters, you should look into the t/ subdirectory in this
+distribution for some examples on how to use this library! Some brief
+explanations and examples can also be found in the LWP/Parallel.pm
+file -- you can use "perldoc LWP::Parallel" after you installed this
+module to view the embedded documentation.
+
+Most of the other modules also come with some brief description of
+their interfaces which can be viewed using "perldoc <Modulename>".
 
 
-Remarks for users upgrading from ParallelUA 2.20:
-------------------------------------------------- 
+4. Remarks for users upgrading from ParallelUA 2.20:
+---------------------------------------------------- 
 
 You should start out by installing a clean copy of the latest
 libwww5.x package, which should overwrite any existing PUA modules
@@ -91,7 +98,7 @@ compatibility (or can also be used to get a somewhat bigger example on
 how to use this module).
  
 
-3. Questions, comments, etc.
+5. Questions, comments, etc.
 ----------------------------
 
 Question about how to use the underlying LWP library should be
@@ -118,7 +125,7 @@ it under the same terms as Perl itself.
 Have fun!
 
 --
-$Revision: 1.8 $
+$Revision: 1.10 $
 
 
 

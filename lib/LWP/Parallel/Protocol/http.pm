@@ -1,6 +1,6 @@
 # -*- perl -*-
-# $Id: http.pm,v 1.5 1998/11/10 06:01:32 marc Exp $
-# derived from http.pm,v 1.43 1998/08/04 12:37:58 aas Exp $
+# $Id: http.pm,v 1.6 1999/01/19 06:36:15 marc Exp $
+# derived from http.pm,v 1.44 1998/11/19 21:45:01 aas Exp $
 
 package LWP::Parallel::Protocol::http;
 
@@ -86,7 +86,8 @@ sub get_address {
     else {
 	$host = $url->host;
 	$port = $url->port;
-	$fullpath = $url->full_path;
+	$fullpath = $url->path_query;
+	$fullpath = "/" unless length $fullpath;
     }
     ($host, $port, $fullpath);
 }
@@ -138,14 +139,20 @@ sub write_request {
     
   # HTTP/1.1 will require us to send the 'Host' header, so we might
   # as well start now.
-  my $hhost = $url->netloc;
-  $hhost =~ s/^([^\@]*)\@//;  # get rid of potential "user:pass@"
+  my $hhost = $url->authority; my $userinfo;
+  # we cannot simply do the substitution below and later test for
+  # the presence of '$1'. If the match fails, $1 retains the value
+  # it had before the match was attempted, thus might be defined
+  # when we test for it later. Solution: We explicitly set the
+  # $userinfo variable to $1 ONLY if the substitution was successful.
+  $hhost =~ s/^([^\@]*)\@// and
+    $userinfo = $1;  # get rid of potential "user:pass@"
   $h->header('Host' => $hhost) unless defined $h->header('Host');
   
   # add authorization header if we need them.  HTTP URLs do
   # not really support specification of user and password, but
   # we allow it.
-  if (defined($1) && not $h->header('Authorization')) {
+  if (defined($userinfo) && not $h->header('Authorization')) {
     $h->authorization_basic($url->user, $url->password);
   }
   

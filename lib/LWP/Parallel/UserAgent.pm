@@ -1,6 +1,6 @@
 # -*- perl -*-
-# $Id: UserAgent.pm,v 1.15 1998/11/24 00:13:46 marc Exp $
-# derived from: UserAgent.pm,v 1.62 1998/08/04 09:59:36 aas Exp $
+# $Id: UserAgent.pm,v 1.16 1999/01/19 06:35:52 marc Exp $
+# derived from: UserAgent.pm,v 1.64 1998/11/19 21:45:01 aas Exp $
 #         and:  ParallelUA.pm,v 1.16 1997/07/23 16:45:09 ahoy Exp $
 
 package LWP::Parallel::UserAgent::Entry;
@@ -438,7 +438,7 @@ sub register {
     return $response;
   }	
   
-  my $netloc = $request->url->netloc; # eg www.cs.washington.edu:8001
+  my $netloc = $request->url->host_port; # eg www.cs.washington.edu:8001
   
   # check if we already tried to connect to this location, and failed
   if ( $remember_failures  and  $failed_connections->{$netloc} ) {
@@ -531,7 +531,7 @@ sub _make_connections_in_order {
   my ($entry, @queue, %busy);
   # get first entry from pending connections
   while ( $entry = shift @{ $self->{'ordpend_connections'} } ) {
-    my $netloc = $entry->request->url->netloc;
+    my $netloc = $entry->request->url->host_port;
     push (@queue, $entry), next  if $busy{$netloc};
     unless ($self->_check_bandwith($entry)) {
       push (@queue, $entry);
@@ -590,7 +590,7 @@ sub _check_bandwith {
     my ($request, $response) = ($entry->request, $entry->response);
     my $url  = $request->url;
 
-    if ( $remember_failures and $failed_connections->{$url->netloc} ) {
+    if ( $remember_failures and $failed_connections->{$url->host_port} ) {
 	$response->code (&HTTP::Status::RC_INTERNAL_SERVER_ERROR);
 	$response->message ("Server unavailable");
 	# simulate immediate response from server
@@ -598,7 +598,7 @@ sub _check_bandwith {
 	return 1;
     }
 
-    my $netloc = $url->netloc;
+    my $netloc = $url->host_port;
 
     if ( $self->_active ($netloc) ) {
 	if ( $self->_req_available ( $url ) ) {
@@ -639,7 +639,7 @@ sub _active { shift->{'current_connections'}->{$_[0]}; };
 # request-slots available at netloc
 sub _req_available { 
     my ( $self, $url ) = @_; 
-    $self->{'max_req'} > $self->_active($url->netloc); 
+    $self->{'max_req'} > $self->_active($url->host_port); 
 };
 # host-slots available
 sub _hosts_available { 
@@ -741,7 +741,7 @@ sub _remove_current_connection {
   $entry->cmd_socket(undef);
   $entry->listen_socket(undef);
 
-  my $netloc = $entry->request->url->netloc;
+  my $netloc = $entry->request->url->host_port;
   if ( $self->_active ($netloc) ) {
     delete $self->{'current_connections'}->{$netloc}
     unless --$self->{'current_connections'}->{$netloc};
@@ -1152,10 +1152,15 @@ sub handle_response
 	my $referral = $request->clone;
 
 	# And then we update the URL based on the Location:-header.
-	# Some servers erroneously return a relative URL for redirects,
-	# so make it absolute if it not already is.
-	my $referral_uri = (URI::URL->new($response->header('Location'),
-					  $response->base))->abs(undef,1);
+	my $referral_uri = $response->header('Location');
+	{
+	    # Some servers erroneously return a relative URL for redirects,
+	    # so make it absolute if it not already is.
+	    local $URI::ABS_ALLOW_RELATIVE_SCHEME = 1;
+	    my $base = $response->base;
+	    $referral_uri = $HTTP::URI_CLASS->new($referral_uri, $base)
+		            ->abs($base);
+	}
 
 	$referral->url($referral_uri);
 
