@@ -1,3 +1,22 @@
+Tue Nov 10 1998 Marc Langheinrich  <marclang@cs.washington.edu>
+
+ o CPAN Release 2.38
+
+ o Split parallel.t into three separate testfiles: compatibility.t,
+   parallel.t and timeouts.t
+	
+ o Fixed timeout handling in Parallel::UserAgent.
+	
+ o Added Timeout tests to parallel.t testscript (this included 
+   using a forking HTTP::Daemon instead of our serial one, since
+   otherwise the timeout simulations would break the server).	
+	
+ o Fixed die's when calling ->previous methods in parallel.t
+	
+Tue Sep 29 1998 Marc Langheinrich  <marclang@cs.washington.edu>
+
+ o Fixed testcript parallel.t for broken redirection on ppc-linux. 
+	
 Tue Sep 22 1998 Marc Langheinrich  <marclang@cs.washington.edu>
 
  o CPAN Release 2.37

@@ -1,5 +1,5 @@
 # -*- perl -*-
-# $Id: UserAgent.pm,v 1.11 1998/09/22 01:32:05 marc Exp $
+# $Id: UserAgent.pm,v 1.13 1998/11/10 06:53:20 marc Exp $
 # derived from: UserAgent.pm,v 1.62 1998/08/04 09:59:36 aas Exp $
 #         and:  ParallelUA.pm,v 1.16 1997/07/23 16:45:09 ahoy Exp $
 
@@ -864,7 +864,7 @@ $timeout is omitted, it will use the Agent default timeout value.
 
 sub wait {
   my ($self, $timeout) = @_;
-  LWP::Debug::trace("($timeout)");
+  LWP::Debug::trace("($timeout)") if $timeout;
   
   my $foobar;
   
@@ -890,7 +890,22 @@ sub wait {
 	# 
 	# empty array, means that select timed out
 	LWP::Debug::trace('select timeout');
-	last ATTEMPT;
+	my $response = HTTP::Response->new(&HTTP::Status::RC_REQUEST_TIMEOUT,
+					'User-agent timeout (select)');
+	my $socket;
+	# set all active requests to "timed out" 
+	foreach $socket ($fh_in->handles ,$fh_out->handles) {
+	  my $entry = $self->{'entries_by_sockets'}->{$socket};
+	  delete $self->{'entries_by_sockets'}->{$socket};
+	  $entry->response ($response);
+	  $response->request ($entry->request);
+	  $self->on_failure ($entry->request, $response, $entry);
+	  $self->_remove_current_connection ( $entry );
+	} 
+	# and delete from read- and write-queues
+	foreach $socket ($fh_out->handles) { $fh_out->remove($socket); }
+	foreach $socket ($fh_in->handles)  { $fh_in->remove($socket);  }
+	# continue processing -- pending requests might still work!
       } else {
 	# something is ready for reading or writing
 	my ($ready_read, $ready_write, $error) = @ready;
@@ -928,6 +943,7 @@ sub wait {
 		$response = HTTP::Response->new(&HTTP::Status::RC_INTERNAL_SERVER_ERROR,
 						$@);
 	      }
+	      $entry->response ($response);
 	      $self->on_failure ($request, $response, $entry);	    
 	    }
 	  } else {

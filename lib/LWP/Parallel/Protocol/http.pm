@@ -1,5 +1,5 @@
 # -*- perl -*-
-# $Id: http.pm,v 1.4 1998/09/01 06:40:45 marc Exp $
+# $Id: http.pm,v 1.5 1998/11/10 06:01:32 marc Exp $
 # derived from http.pm,v 1.43 1998/08/04 12:37:58 aas Exp $
 
 package LWP::Parallel::Protocol::http;
@@ -93,9 +93,10 @@ sub get_address {
 
 sub connect {
     my ($self, $host, $port, $timeout) = @_;
-
+    # this method inherited from LWP::Protocol::http
     my $socket = $self->_new_socket($host, $port, $timeout);
-#    $self->_check_sock($request, $socket);
+    # currently empty function in LWP::Protocol::http
+    # $self->_check_sock($request, $socket);
 #  LWP::Debug::debug("Socket is $socket");
 	    
     $socket;

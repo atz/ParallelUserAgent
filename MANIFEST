@@ -1,5 +1,6 @@
 ChangeLog
 MANIFEST
+README
 Makefile.PL
 lib/Bundle/ParallelUA.pm
 lib/LWP/Parallel.pm
@@ -11,6 +12,8 @@ lib/LWP/Parallel/Protocol.pm
 lib/LWP/Parallel/Protocol/http.pm
 lib/LWP/Parallel/Protocol/ftp.pm
 t/parallel.t
+t/compatibility.t
+t/timeouts.t
 t/TestScript.pl
 t/example1.pl
 t/example2.pl
