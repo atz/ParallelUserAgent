@@ -1,3 +1,17 @@
+Tue Sep 1 1998 Marc Langheinrich  <marclang@cs.washington.edu>
+
+ o CPAN Release 2.35 
+	
+ o http.pm: updated changes in libwww-5.46 (http.pm,v 1.43). Fixed
+   problems with "die"s during operation (now caught by UserAgent.pm)
+
+ o ftp.pm: updated changes in libwww-5.46 (ftp.pm,v 1.24)
+
+ o UserAgent.pm: Fixed "eval{}" calls to Protocol.pm objects. Updated
+   changes in libwww-5.46 (UserAgent.pm,v 1.62)
+	
+ o Checked against libwww-5.36
+
 Thu Jul 9 1998 Marc Langheinrich <marclang@cs.washington.edu>
 
  o CPAN Release 2.34

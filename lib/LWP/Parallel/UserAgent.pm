@@ -1,6 +1,6 @@
 # -*- perl -*-
-# $Id: UserAgent.pm,v 1.7 1998/07/08 23:51:21 marc Exp $
-# derived from: UserAgent.pm,v 1.60 1998/04/02 13:06:05 aas Exp $
+# $Id: UserAgent.pm,v 1.8 1998/09/01 06:43:11 marc Exp $
+# derived from: UserAgent.pm,v 1.62 1998/08/04 09:59:36 aas Exp $
 #         and:  ParallelUA.pm,v 1.16 1997/07/23 16:45:09 ahoy Exp $
 
 package LWP::Parallel::UserAgent::Entry;
@@ -883,12 +883,38 @@ sub wait {
 	  
 	  my ( $request, $protocol, $fullpath, $arg ) = 
 	    $entry->get( qw(request protocol fullpath arg) );
-	  my ($listen_socket, $response) = 
-	    $protocol->write_request ($request, 
-				      $socket, 
-				      $fullpath, 
-				      $arg,
-				      $timeout);
+
+	  my ($listen_socket, $response);
+	  if ($self->{'use_eval'}) {
+	    eval {
+	      ($listen_socket, $response) = 
+		$protocol->write_request ($request, 
+					  $socket, 
+					  $fullpath, 
+					  $arg,
+					  $timeout);
+	    };
+	    if ($@) {
+	      if ($@ =~ /^timeout/i) {
+		$response->code (&HTTP::Status::RC_REQUEST_TIMEOUT);
+		$response->message ('User-agent timeout');
+	      } else {
+		# remove file/line number
+		$@ =~ s/\s+at\s+\S+\s+line\s+\d+\s*//;  
+		$response->code (&HTTP::Status::RC_INTERNAL_SERVER_ERROR);
+		$response->message ($@);
+	      }
+	    }
+	  } else {
+	    # user has to handle any dies, usually timeouts
+	    ($listen_socket, $response) = 
+	      $protocol->write_request ($request, 
+					$socket, 
+					$fullpath, 
+					$arg,
+					$timeout);
+	  }
+
 	  if ($response and !$response->is_success) {
 	    $entry->response($response);
 	    $entry->response->request($request);
@@ -921,10 +947,31 @@ sub wait {
 	    $entry->get( qw(request response protocol 
 			    fullpath arg size) );
 	  
-	  my $retval =  $protocol->read_chunk ($response, $socket, $request,
-					       $arg, $size, $timeout,
-					       $entry);
-	  
+	  my $retval;
+	  if ($self->{'use_eval'}) {
+	    eval {
+	      $retval =  $protocol->read_chunk ($response, $socket, $request,
+						$arg, $size, $timeout,
+						$entry);
+	    };
+	    if ($@) {
+	      if ($@ =~ /^timeout/i) {
+		$response->code (&HTTP::Status::RC_REQUEST_TIMEOUT);
+		$response->message ('User-agent timeout');
+	      } else {
+		# remove file/line number
+		$@ =~ s/\s+at\s+\S+\s+line\s+\d+\s*//;  
+		$response->code (&HTTP::Status::RC_INTERNAL_SERVER_ERROR);
+		$response->message ($@);
+	      }
+	    }
+	  } else {
+	    # user has to handle any dies, usually timeouts
+	    $retval =  $protocol->read_chunk ($response, $socket, $request,
+					      $arg, $size, $timeout,
+					      $entry);
+	  }
+
 	  # examine return value. $retval is either a positive
 	  # number, indicating the number of bytes read, or
 	  # '0' (for EOF), or a callback-function code (<0)
@@ -948,8 +995,27 @@ sub wait {
 	    # read_chunk returns 0 if we reached EOF
 	    $fh_in->remove($socket);
 	    # use protocol dependent method to close connection
-	    $protocol->close_connection($response, $socket, 
-					$request, $entry->cmd_socket);
+
+	    if ($self->{'use_eval'}) {
+	      eval { 
+		$protocol->close_connection($response, $socket, 
+					    $request, $entry->cmd_socket);
+	      };
+	      if ($@) {
+		if ($@ =~ /^timeout/i) {
+		  $response->code (&HTTP::Status::RC_REQUEST_TIMEOUT);
+		  $response->message ('User-agent timeout');
+		} else {
+		  # remove file/line number
+		  $@ =~ s/\s+at\s+\S+\s+line\s+\d+\s*//;  
+		  $response->code (&HTTP::Status::RC_INTERNAL_SERVER_ERROR);
+		  $response->message ($@);
+		}
+	      }
+	    } else {
+	      $protocol->close_connection($response, $socket, 
+					  $request, $entry->cmd_socket);
+	    }
 #	    $socket->shutdown(2); # see "man perlfunc" & "man 2 shutdown"
 	    close ($socket);
 	    $socket = undef; # close socket
@@ -1100,6 +1166,9 @@ sub handle_response
 	my $scheme = lc(shift(@$challenge));
 	shift(@$challenge); # no value
 	$challenge = { @$challenge };  # make rest into a hash
+	for (keys %$challenge) {       # make sure all keys are lower case
+	    $challenge->{lc $_} = delete $challenge->{$_};
+	}
 
 	unless ($scheme =~ /^([a-z]+(?:-[a-z]+)*)$/) {
 	    $response->header("Client-Warning" => 

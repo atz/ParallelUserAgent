@@ -50,14 +50,17 @@ distribution, since it relies on features that were not available in
 earlier versions. If you are using a different version then the ones
 listed below, either upgrade to the newest libwww distribution, or try
 running the testscript ("make test") and see if it tests ok anyways
-:-)
-
+:-) 
 
 Checked versions so far:
 
-	libwww-5.20 - 5.34		ok
+	libwww-5.20 - 5.36		ok
 	libwww-5.19			untested
 	libwww-5.18 and below		not ok!
+
+Note: For optimal performance you shoul use the _latest_ version of 
+      libwww-perl that is listed above (i.e. 5.36).
+
 
 Remarks for users upgrading from ParallelUA 2.20:
 ------------------------------------------------- 
@@ -74,7 +77,8 @@ LWP::Parallel::UserAgent and LWP::Parallel::RobotUA.
 
 The old "TestScript.pl" that used to come with versions 2.20 and below
 can be found in t/TestScript.pl and can be used to check backward
-compatibility.
+compatibility (or can also be used to get a somewhat bigger example on
+how to use this module).
  
 
 3. Questions, comments, etc.
@@ -103,7 +107,7 @@ it under the same terms as Perl itself.
 Have fun!
 
 --
-$Revision: 1.5 $
+$Revision: 1.6 $
 
 
 

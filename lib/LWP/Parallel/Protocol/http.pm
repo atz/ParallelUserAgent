@@ -1,6 +1,6 @@
 # -*- perl -*-
-# $Id: http.pm,v 1.3 1998/06/10 07:44:41 marc Exp $
-# derived from http.pm,v 1.41 1998/02/12 22:24:11 aas Exp
+# $Id: http.pm,v 1.4 1998/09/01 06:40:45 marc Exp $
+# derived from http.pm,v 1.43 1998/08/04 12:37:58 aas Exp $
 
 package LWP::Parallel::Protocol::http;
 
@@ -118,98 +118,62 @@ sub write_request {
 
   my $request_line = "$method $fullpath HTTP/1.0$CRLF";
   
+  my $h = $request->headers->clone;
+  my $cont_ref = $request->content_ref;
+  $cont_ref = $$cont_ref if ref($$cont_ref);
+  my $ctype = ref($cont_ref);
+
   # If we're sending content we *have* to specify a content length
   # otherwise the server won't know a messagebody is coming.
-  my $content = $request->content;
-
-  LWP::Debug::debug ("Request has ".length($content)." bytes of content")
-     if $content;
-  
-
-  # All this mess because we want to support content as both scalar,
-  # ref to scalar and ref to code.
-  my $contRef;
-  if (defined $content) {
-      $contRef = ref($content) ? $content : \$content;
-      if (ref($contRef) eq 'SCALAR') {
-	  $request->header('Content-Length' => length $$contRef)
-	      if length $$contRef;
-      } elsif (ref($contRef) eq 'CODE') {
-	return (undef, HTTP::Response->new(&HTTP::Status::RC_BAD_REQUEST,
-	        'No Content-Length header for request with code content'))
-		unless $request->header('Content-Length');
-	} else {
-	    my $type = ref($contRef);
-	    return (undef, HTTP::Response->new(&HTTP::Status::RC_BAD_REQUEST,
-	            "Illegal content type ($type) in request"));
-	}
-  }
-  
+  if ($ctype eq 'CODE') {
+    die 'No Content-Length header for request with dynamic content'
+      unless defined($h->header('Content-Length')) ||
+	$h->content_type =~ /^multipart\//;
+    # For HTTP/1.1 we could have used chunked transfer encoding...
+  } else {
+    $h->header('Content-Length' => length $$cont_ref)
+      if defined($$cont_ref) && length($$cont_ref);
+  }  
+    
   # HTTP/1.1 will require us to send the 'Host' header, so we might
   # as well start now.
-  {
-      my $host = $url->netloc;
-      $host =~ s/^([^\@]*)\@//;  # get rid of potential "user:pass@"
-      $request->header('Host' => $host)
-	  unless defined $request->header('Host');
-      
-      # add authorization header if we need them
-      if (defined($1) && not $request->header('Authorization')) {
-	  $request->authorization_basic($url->user, $url->password);
-      }
+  my $hhost = $url->netloc;
+  $hhost =~ s/^([^\@]*)\@//;  # get rid of potential "user:pass@"
+  $h->header('Host' => $hhost) unless defined $h->header('Host');
+  
+  # add authorization header if we need them.  HTTP URLs do
+  # not really support specification of user and password, but
+  # we allow it.
+  if (defined($1) && not $h->header('Authorization')) {
+    $h->authorization_basic($url->user, $url->password);
   }
   
-  # we always assume that we are writeable
-  my $buf = $request_line . $request->headers_as_string($CRLF) . $CRLF;
-  my $n; # used for return value from syswrite/sysread
+  my $buf = $request_line . $h->as_string($CRLF) . $CRLF;
+  my $n;  # used for return value from syswrite/sysread
 
-  return (undef, 
-	  HTTP::Response->new(&HTTP::Status::RC_REQUEST_TIMEOUT, "Write Timeout"))
-      if $timeout && !$sel->can_write($timeout);
+  # die's will be caught if user specified "use_eval".
+  die "write timeout" if $timeout && !$sel->can_write($timeout);
   $n = $socket->syswrite($buf, length($buf));
-  return (undef, 
-	  HTTP::Response->new(&HTTP::Status::RC_SERVICE_UNAVAILABLE, 
-			      "Syswrite Error: $!"))
-      unless defined($n);
-  return (undef, 
-	  HTTP::Response->new(&HTTP::Status::RC_BAD_GATEWAY, "Short Write"))
-      unless $n == length($buf);
+  die $! unless defined($n);
+  die "short write" unless $n == length($buf);
   LWP::Debug::conns($buf);
-
   
-  if (defined $content) {
-      if (ref($contRef) eq 'CODE') {
-	  while ( ($buf = &$contRef()), defined($buf) && length($buf)) {
-	      return (undef, 
-		      HTTP::Response->new(&HTTP::Status::RC_REQUEST_TIMEOUT, 
-					  "Write Timeout"))
-		  if $timeout && !$sel->can_write($timeout);
-	      $n = $socket->syswrite($buf, length($buf));
-	      return (undef, 
-		      HTTP::Response->new(&HTTP::Status::RC_SERVICE_UNAVAILABLE, $!))
-		  unless defined($n);
-	      return (undef, 
-		      HTTP::Response->new(&HTTP::Status::RC_BAD_GATEWAY, 
-					  "Short Write"))
-		  unless $n == length($buf);
-	      LWP::Debug::conns($buf);
-	  }
-      } elsif (length($$contRef)) {
-	  return (undef, HTTP::Response->new(&HTTP::Status::RC_REQUEST_TIMEOUT, 
-	         "Write Timeout"))
-		     if $timeout && !$sel->can_write($timeout);
-	  $n = $socket->syswrite($$contRef, length($$contRef));
-	  return (undef,
-		  HTTP::Response->new(&HTTP::Status::RC_SERVICE_UNAVAILABLE, $!))
-	      unless defined($n);
-	  return (undef, 
-		  HTTP::Response->new(&HTTP::Status::RC_BAD_GATEWAY, 
-				      "Short Write"))
-	      unless $n == length($$contRef);
-	  LWP::Debug::conns($buf);
-      }
+  if ($ctype eq 'CODE') {
+    while ( ($buf = &$cont_ref()), defined($buf) && length($buf)) {
+      die "write timeout" if $timeout && !$sel->can_write($timeout);
+      $n = $socket->syswrite($buf, length($buf));
+      die $! unless defined($n);
+      die "short write" unless $n == length($buf);
+      LWP::Debug::conns($buf);
+    }
+  } elsif (defined($$cont_ref) && length($$cont_ref)) {
+    die "write timeout" if $timeout && !$sel->can_write($timeout);
+    $n = $socket->syswrite($$cont_ref, length($$cont_ref));
+    die $! unless defined($n);
+    die "short write" unless $n == length($$cont_ref);
+    LWP::Debug::conns($buf);
   }
-
+  
   # For a HTTP request, the 'command' socket is the same as the
   # 'listen' socket, so we just return the socket here.
   # (In the ftp module, we usually have one socket being the command

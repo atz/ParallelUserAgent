@@ -1,6 +1,6 @@
 # -*- perl -*-
-# $Id: ftp.pm,v 1.4 1998/07/08 23:49:18 marc Exp $
-# derived from ftp.pm,v 1.23 1998/07/06 09:28:42 aas Exp
+# $Id: ftp.pm,v 1.5 1998/09/01 06:41:11 marc Exp $
+# derived from ftp.pm,v 1.24 1998/07/17 10:37:29 aas Exp $
 
 # Implementation of the ftp protocol (RFC 959). We let the Net::FTP
 # package do all the dirty work.
@@ -176,19 +176,19 @@ sub write_request {
   }
   
   if ($method eq 'GET' || $method eq 'HEAD') {
-    # new in ftp.pm,v 1.23
+    # new in ftp.pm,v 1.23 (fixed in ftp.pm,v 1.24)
     LWP::Debug::debug("MDTM");
     if (my $mod_time = $ftp->mdtm($remote_file)) {
       $response->last_modified($mod_time);
       if (my $ims = $request->if_modified_since) {
-	if ($mod_time > $ims) {
+	if ($mod_time <= $ims) {
 	  $response->code(&HTTP::Status::RC_NOT_MODIFIED);
 	  $response->message("Not modified");
 	  return $response;
 	}
       }
     }
-    # 32.1 v,mp.ptf ni wen
+    # end_of_new_stuff
 
     my $data;			# the data handle
     LWP::Debug::debug("retrieve file?");
