@@ -1,5 +1,5 @@
 # -*- perl -*-
-# $Id: RobotUA.pm,v 1.7 2001/05/28 17:44:17 langhein Exp $
+# $Id: RobotUA.pm,v 1.9 2002/03/28 20:25:43 langhein Exp $
 # derived from: RobotUA.pm,v 1.17 2000/04/09 11:21:11 gisle Exp $
 
 
@@ -8,7 +8,7 @@ package LWP::Parallel::RobotUA;
 use LWP::Parallel::UserAgent qw(:CALLBACK);
 require LWP::RobotUA;
 @ISA = qw(LWP::Parallel::UserAgent LWP::RobotUA Exporter);
-$VERSION = sprintf("%d.%02d", q$Revision: 1.7 $ =~ /(\d+)\.(\d+)/);
+$VERSION = sprintf("%d.%02d", q$Revision: 1.9 $ =~ /(\d+)\.(\d+)/);
 
 @EXPORT = qw(); 
 # callback commands
@@ -177,7 +177,7 @@ sub _make_connections_in_order {
     while ( $entry = shift @$ordpend_connections ) {
 
 	my $request = $entry->request;
-	my $netloc  = $request->url->host_port;
+	my $netloc  = eval { local $SIG{__DIE__}; $request->url->host_port; }
 
         if ( $remember_failures  and $failed_connections->{$netloc} ) {
 	    my $response = $entry->response;
@@ -232,9 +232,10 @@ sub _make_connections_in_order {
 		    arg 	=> sub {
 			# callback function (closure)
 			my ($content, $robot_res, $protocol) = @_;
-
+                        my $netloc = eval { local $SIG{__DIE__}; 
+                                            $request->url->host_port; };
 			# unset flag - we're done checking
-			$self->_checking_robots_txt ($request->url->host_port, -1);
+			$self->_checking_robots_txt ($netloc, -1);
 
 			my $fresh_until = $robot_res->fresh_until;
 			if ($robot_res->is_success) {
@@ -242,17 +243,17 @@ sub _make_connections_in_order {
 	                  if ($robot_res->content_type =~ m,^text/, && 
 			      $c =~ /Disallow/) {
 			    LWP::Debug::debug("Parsing robot rules for ". 
-			  		      $request->url->host_port);
+			  		      $netloc);
 		            $rules->parse($robot_url, $c, $fresh_until);
 	                  }
 	                  else {
 		            LWP::Debug::debug("Ignoring robots.txt for ".
-				              $request->url->host_port);
+				              $netloc);
 		            $rules->parse($robot_url, "", $fresh_until);
 	                  }
 			} else {
 			  LWP::Debug::debug("No robots.txt file found at " . 
-					    $request->url->host_port);
+					    $netloc);
 			    $rules->parse($robot_url, "", $fresh_until);
 			}
 		    },
@@ -406,10 +407,11 @@ sub _make_connections_unordered {
 			arg 	=> sub {
 			    # callback function (closure)
 			    my ($content, $robot_res, $protocol) = @_;
-			    
+                            my $netloc = eval { local $SIG{__DIE__}; 
+                                                $request->url->host_port; };
 			    # unset flag - we're done checking
 			    $self->_checking_robots_txt 
-				($request->url->host_port, -1);
+				($netloc, -1);
 			    
 			    my $fresh_until = $robot_res->fresh_until;
 			    if ($robot_res->is_success) {
@@ -417,17 +419,17 @@ sub _make_connections_unordered {
 	                      if ($robot_res->content_type =~ m,^text/, && 
 			          $c =~ /Disallow/) {
 			        LWP::Debug::debug("Parsing robot rules for ". 
-				  		  $request->url->host_port);
+				  		  $netloc);
 		                $rules->parse($robot_url, $c, $fresh_until);
 	                      }
 	                      else {
 		                LWP::Debug::debug("Ignoring robots.txt for ".
-				                  $request->url->host_port);
+				                  $netloc);
 		                $rules->parse($robot_url, "", $fresh_until);
 	                      }
 			    } else {
 			      LWP::Debug::debug("No robots.txt file found at ".
-						$request->url->host_port);
+						$netloc);
 				$rules->parse($robot_url, "", $fresh_until);
 			    }
 			},
@@ -452,7 +454,8 @@ sub _make_connections_unordered {
 		$entry->response($res);
 		# silently drop entry here from pending_connections
 	    } elsif ($allowed > 0) {
-		my $netloc = $request->url->host_port;
+		my $netloc = eval { local $SIG{__DIE__}; 
+                                    $request->url->host_port; } # LWP 5.60
 		
 		# check robot-wait information to see if we have to wait
 		my $wait = $self->host_wait($netloc);
@@ -528,7 +531,7 @@ L<LWP::Parallel::UserAgent>, L<LWP::RobotUA>, L<WWW::RobotRules>
 
 =head1 COPYRIGHT
 
-Copyright 1997-2001 Marc Langheinrich E<lt>marclang@cs.washington.edu>
+Copyright 1997-2001 Marc Langheinrich E<lt>marclang@cpan.org>
 
 This library is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.

@@ -8,7 +8,7 @@ $NONBLOCK = 0; # set to 1 to try out non-blocking connects (new in 2.51)
 # uncomment the following line if you want to run these tests from the command
 # line using the local version of Parallel::UserAgent (otherwise perl will take
 # the already installed version):
-# use lib ('./lib');
+use lib ('./lib');
 
 # First we create HTTP server for testing our http protocol
 # (this is stolen from the libwww t/local/http.t file)
@@ -29,7 +29,7 @@ if ($D eq 'daemon') {
     while ($c = $d->accept) {
 	$r = $c->get_request;
 	if ($r) {
-	    my $p = ($r->url->path_components)[1];
+	    my $p = ($r->url->path_segments)[1];
 	    my $func = lc("httpd_" . $r->method . "_$p");
 	    if (defined &$func) {
 		&$func($c, $r);
@@ -69,7 +69,7 @@ require LWP::Parallel::UserAgent;
 require HTTP::Request;
 my $ua = new LWP::Parallel::UserAgent;
 $ua->agent("Mozilla/0.01 " . $ua->agent);
-$ua->from('marclang@cs.washington.edu');
+$ua->from('marclang@cpan.org');
 $ua->nonblock($NONBLOCK);  
 
 

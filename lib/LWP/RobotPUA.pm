@@ -1,5 +1,5 @@
 # -*- perl -*-
-# $Id: RobotPUA.pm,v 1.4 2001/02/21 11:10:46 langhein Exp $
+# $Id: RobotPUA.pm,v 1.5 2001/07/26 09:26:23 langhein Exp $
 
 package LWP::RobotPUA;
 use Exporter();
@@ -42,7 +42,7 @@ module.
 
 =head1 AUTHOR
 
-Marc Langheinrich, marclang@cs.washington.edu
+Marc Langheinrich, marclang@cpan.org
 
 =head1 SEE ALSO
 

@@ -1,6 +1,6 @@
 # -*- perl -*-
-# $Id: http.pm,v 1.10 2001/05/31 17:42:55 langhein Exp $
-# derived from: http.pm,v 1.52 2001/04/05 15:08:33 gisle Exp $
+# $Id: http.pm,v 1.11 2002/03/28 20:25:44 langhein Exp $
+# derived from: http10.pm,v 1.1 2001/10/26 17:27:19 gisle Exp $
 
 package LWP::Parallel::Protocol::http;
 
@@ -16,8 +16,8 @@ use Carp ();
 use vars qw(@ISA @EXTRA_SOCK_OPTS);
 
 require LWP::Parallel::Protocol;
-require LWP::Protocol::http;
-@ISA = qw(LWP::Parallel::Protocol LWP::Protocol::http);
+require LWP::Protocol::http10; # until i figure out gisle's http1.1 stuff!
+@ISA = qw(LWP::Parallel::Protocol LWP::Protocol::http10);
 
 my $CRLF         = "\015\012";     # how lines should be terminated;
 				   # "\r\n" is not correct on all systems, for
@@ -189,28 +189,47 @@ sub write_request {
 
   my $buf = $request_line . $h->as_string($CRLF) . $CRLF;
   my $n;  # used for return value from syswrite/sysread
+  my $length;
+  my $offset;
 
   # die's will be caught if user specified "use_eval".
-  die "write timeout" if $timeout && !$sel->can_write($timeout);
-  $n = $socket->syswrite($buf, length($buf));
-  die $! unless defined($n);
-  die "short write" unless $n == length($buf);
+
+  # syswrite $buf
+  $length = length($buf);
+  $offset = 0;
+  while ( $offset < $length ) {
+	die "write timeout" if $timeout && !$sel->can_write($timeout);
+	$n = $socket->syswrite($buf, $length-$offset, $offset );
+	die $! unless defined($n);
+	$offset += $n;
+  }
+ 
   LWP::Debug::conns($buf);
   
   if ($ctype eq 'CODE') {
     while ( ($buf = &$cont_ref()), defined($buf) && length($buf)) {
-      die "write timeout" if $timeout && !$sel->can_write($timeout);
-      $n = $socket->syswrite($buf, length($buf));
-      die $! unless defined($n);
-      die "short write" unless $n == length($buf);
+      # syswrite $buf
+      $length = length($buf);
+      $offset = 0;
+      while ( $offset < $length ) {
+	die "write timeout" if $timeout && !$sel->can_write($timeout);
+	$n = $socket->syswrite($buf, $length-$offset, $offset );
+	die $! unless defined($n);
+	$offset += $n;
+      }
       LWP::Debug::conns($buf);
     }
   } 
   elsif (defined($$cont_ref) && length($$cont_ref)) {
-    die "write timeout" if $timeout && !$sel->can_write($timeout);
-    $n = $socket->syswrite($$cont_ref, length($$cont_ref));
-    die $! unless defined($n);
-    die "short write" unless $n == length($$cont_ref);
+    # syswrite $$cont_ref
+    $length = length($$cont_ref);
+    $offset = 0;
+    while ( $offset < $length ) {
+      die "write timeout" if $timeout && !$sel->can_write($timeout);
+      $n = $socket->syswrite($$cont_ref, $length-$offset, $offset );
+      die $! unless defined($n);
+      $offset += $n;
+    }
     LWP::Debug::conns($buf);
   }
   
@@ -411,5 +430,53 @@ sub close_connection {
 sub request {
     die "LWP::Parallel::Protocol::http does not support single requests\n";
 }
+
+
+#-----------------------------------------------------------
+# copied from LWP::Protocol::http (v1.63 in LWP5.64)
+#-----------------------------------------------------------
+package LWP::Parallel::Protocol::http::SocketMethods;
+
+sub sysread {
+    my $self = shift;
+    if (my $timeout = ${*$self}{io_socket_timeout}) {
+	die "read timeout" unless $self->can_read($timeout);
+    }
+    else {
+	# since we have made the socket non-blocking we
+	# use select to wait for some data to arrive
+	$self->can_read(undef) || die "Assert";
+    }
+    sysread($self, $_[0], $_[1], $_[2] || 0);
+}
+
+sub can_read {
+    my($self, $timeout) = @_;
+    my $fbits = '';
+    vec($fbits, fileno($self), 1) = 1;
+    my $nfound = select($fbits, undef, undef, $timeout);
+    die "select failed: $!" unless defined $nfound;
+    return $nfound > 0;
+}
+
+sub ping {
+    my $self = shift;
+    !$self->can_read(0);
+}
+
+sub increment_response_count {
+    my $self = shift;
+    return ++${*$self}{'myhttp_response_count'};
+}
+
+#-----------------------------------------------------------
+package LWP::Parallel::Protocol::http::Socket;
+use vars qw(@ISA);
+@ISA = qw(LWP::Parallel::Protocol::http::SocketMethods Net::HTTP);
+
+#-----------------------------------------------------------
+# ^^^ copied from LWP::Protocol::http (v1.63 in LWP5.64)
+#-----------------------------------------------------------
+
 
 1;

@@ -1,6 +1,6 @@
 # -*- perl -*-
-# $Id: UserAgent.pm,v 1.25 2001/05/31 17:42:35 langhein Exp $
-# derived from: UserAgent.pm,v 1.80 2001/03/19 19:30:16 gisle Exp $
+# $Id: UserAgent.pm,v 1.27 2002/03/28 20:25:43 langhein Exp $
+# derived from: UserAgent.pm,v 2.1 2001/12/11 21:11:29 gisle Exp $
 #         and:  ParallelUA.pm,v 1.16 1997/07/23 16:45:09 ahoy Exp $
 
 package LWP::Parallel::UserAgent::Entry;
@@ -75,6 +75,7 @@ package LWP::Parallel::UserAgent;
 
 use Exporter();
 
+$ENV{PERL_LWP_USE_HTTP_1.0} = "Yes"; # until i figure out gisle's http1.1 stuff
 require LWP::Parallel::Protocol;
 require LWP::UserAgent;
 @ISA = qw(LWP::UserAgent Exporter);
@@ -179,7 +180,8 @@ what you want).
 sub new {
     my($class,$init) = @_;
 
-    my $self = new LWP::UserAgent $init;
+    # my $self = new LWP::UserAgent $init;
+    my $self = new LWP::UserAgent; # thanks to Kirill
     $self = bless $self, $class;
 
     # handle responses per default
@@ -364,8 +366,8 @@ Specifying C<$redirect_ok> will alter the redirection behaviour for
 this particular request only. '1' or any other true value will force
 Parallel::UserAgent to follow redirects, even if the default is set to
 'no_redirect'. (see C<$ua->redirect>) '0' or any other false value
-should do the reverse.  Please note that POST requests are not being
-followed, regardless of the $redirect_ok value!
+should do the reverse. See LWP::UserAgent for using an object's
+C<requests_redirectable> list for fine-tuning this behavior.
 
 If C<$arg> is a scalar it is taken as a filename where the content of
 the response is stored.
@@ -408,7 +410,7 @@ sub register {
 
   unless (ref($request) and $request->can('url')) {
     Carp::carp "Can't use '$request' as an HTTP::Request object. Ignoring";
-    return HTTP::Response->new(&HTTP::Status::RC_NOT_IMPLEMENTED,
+    return _new_response($request, &HTTP::Status::RC_NOT_IMPLEMENTED,
 		               "Unknown request type: '$request'");
   }
   LWP::Debug::debug("(".$request->url->as_string .
@@ -1032,12 +1034,12 @@ sub _perform_write
       # if our call fails, we might not have a $response object, so we
       # have to create a new one here
       if ($@ =~ /^timeout/i) {
-	$response = HTTP::Response->new(&HTTP::Status::RC_REQUEST_TIMEOUT,
+	$response = _new_response($request, &HTTP::Status::RC_REQUEST_TIMEOUT,
 					'User-agent timeout (syswrite)');
       } else {
 	# remove file/line number
 	$@ =~ s/\s+at\s+\S+\s+line\s+\d+.*//s;  
-	$response = HTTP::Response->new(&HTTP::Status::RC_INTERNAL_SERVER_ERROR,
+	$response = _new_response($request, &HTTP::Status::RC_INTERNAL_SERVER_ERROR,
 					$@);
       }
       $entry->response ($response);
@@ -1232,6 +1234,7 @@ sub handle_response
 	}
 
 	$referral->url($referral_uri);
+	$referral->remove_header('Host');
 
 	# don't do anything unless we're allowed to redirect
 	return $response unless $self->redirect_ok($referral);
@@ -1356,7 +1359,10 @@ object itself.
 
 =cut
 
-sub simple_request {
+# sub simple_request
+# (see LWP::UserAgent)
+
+sub send_request {
   my $self = shift;
   
   my $ua = LWP::Parallel::UserAgent->new();
@@ -1413,11 +1419,11 @@ sub init_request {
     LWP::Debug::trace("-> ($request) [$method $url]");
 
     # Check that we have a METHOD and a URL first
-    return HTTP::Response->new(&HTTP::Status::RC_BAD_REQUEST, "Method missing")
+    return _new_response($request, &HTTP::Status::RC_BAD_REQUEST, "Method missing")
 	unless $method;
-    return HTTP::Response->new(&HTTP::Status::RC_BAD_REQUEST, "URL missing")
+    return _new_response($request, &HTTP::Status::RC_BAD_REQUEST, "URL missing")
 	unless $url;
-    return HTTP::Response->new(&HTTP::Status::RC_BAD_REQUEST, "URL must be absolute")
+    return _new_response($request, &HTTP::Status::RC_BAD_REQUEST, "URL must be absolute")
 	unless $url->scheme;
 	
 
@@ -1438,7 +1444,7 @@ sub init_request {
     };
     if ($@) {
 	$@ =~ s/\s+at\s+\S+\s+line\s+\d+.*//s;  # remove file/line number
-	return HTTP::Response->new(&HTTP::Status::RC_NOT_IMPLEMENTED, $@)
+	return _new_response($request, &HTTP::Status::RC_NOT_IMPLEMENTED, $@)
     }
 
     # Extract fields that will be used below
@@ -1497,7 +1503,7 @@ L<LWP::UserAgent>
 
 =head1 COPYRIGHT
 
-Copyright 1997-2001 Marc Langheinrich E<lt>marclang@cs.washington.edu>
+Copyright 1997-2001 Marc Langheinrich E<lt>marclang@cpan.org>
 
 This library is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.

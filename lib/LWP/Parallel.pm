@@ -1,9 +1,9 @@
 # -*- perl -*-
-# $Id: Parallel.pm,v 1.15 2001/05/28 17:45:27 langhein Exp $
+# $Id: Parallel.pm,v 1.17 2002/03/28 20:25:42 langhein Exp $
 
 package LWP::Parallel;
 
-$VERSION = '2.51';
+$VERSION = '2.54';
 sub Version { $VERSION };
 
 require 5.004;
@@ -282,7 +282,7 @@ comes in.
 
 =head1 AUTHOR
 
-Marc Langheinrich, marclang@cs.washington.edu
+Marc Langheinrich, marclang@cpan.org
 
 =head1 SEE ALSO
 

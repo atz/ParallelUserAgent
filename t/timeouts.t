@@ -45,7 +45,7 @@ sub handle_connection {
   ## spawn failed, or I'm a good child
   my $request = $connection->get_request;
   if (defined($request)) {
-    my $p = ($request->url->path_components)[1];
+    my $p = ($request->url->path_segments)[1];
     my $func = lc("httpd_" . $request->method . "_$p");
     if (defined &$func) {
       &$func($connection, $request);
@@ -83,7 +83,7 @@ require LWP::Parallel::UserAgent;
 require HTTP::Request;
 my $ua = new LWP::Parallel::UserAgent;
 $ua->agent("Mozilla/0.01 " . $ua->agent);
-$ua->from('marclang@cs.washington.edu');
+$ua->from('marclang@cpan.org');
 
 #----------------------------------------------------------------
 print "\n - Checking Timeouts:\n";

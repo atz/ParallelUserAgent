@@ -1,6 +1,9 @@
 $| = 1; # autoflush
 
-$DEBUG = 0;
+my $DEBUG = 0;
+my $CRLF = "\015\012";
+
+#use Data::Dump ();
 
 # uncomment the following line if you want to run these tests from the command
 # line using the local version of Parallel::UserAgent (otherwise perl will take
@@ -69,7 +72,7 @@ require LWP::Parallel::UserAgent;
 require HTTP::Request;
 my $ua = new LWP::Parallel::UserAgent;
 $ua->agent("Mozilla/0.01 " . $ua->agent);
-$ua->from('marclang@cs.washington.edu');
+$ua->from('marclang@cpan.org');
 
 #----------------------------------------------------------------
 print "\nLWP::UserAgent compatibility...\n";
@@ -123,7 +126,7 @@ print "ok 3\n";
 $_ = $res->content;
 @accept = /^Accept:\s*(.*)/mg;
 
-print "not " unless /^From:\s*marclang\@cs\.washington\.edu$/m
+print "not " unless /^From:\s*marclang\@cpan\.org$/m
                 and /^Host:/m
                 and @accept == 3
 	        and /^Accept:\s*text\/html/m
@@ -205,7 +208,7 @@ print "not " unless $res->previous
                 and $res->previous->code == 301;
 print "ok 9\n";
 
-# Let's test a redirect loop too
+# Lets test a redirect loop too
 sub httpd_get_redirect2 { shift->send_redirect("/redirect3/") }
 sub httpd_get_redirect3 { shift->send_redirect("/redirect4/") }
 sub httpd_get_redirect4 { shift->send_redirect("/redirect5/") }

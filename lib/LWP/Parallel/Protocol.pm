@@ -1,6 +1,6 @@
 #  -*- perl -*-
-# $Id: Protocol.pm,v 1.6 2001/05/28 17:44:30 langhein Exp $
-# derived from: Protocol.pm,v 1.36 2000/04/09 11:20:48 gisle Exp $
+# $Id: Protocol.pm,v 1.7 2002/03/28 20:25:43 langhein Exp $
+# derived from: Protocol.pm,v 1.39 2001/10/26 19:00:21 gisle Exp
 
 package LWP::Parallel::Protocol;
 
@@ -37,36 +37,29 @@ methods and functions are provided:
 
 require LWP::Protocol;
 @ISA = qw(LWP::Protocol);
-$VERSION = sprintf("%d.%02d", q$Revision: 1.6 $ =~ /(\d+)\.(\d+)/);
+$VERSION = sprintf("%d.%02d", q$Revision: 1.7 $ =~ /(\d+)\.(\d+)/);
 
 
 use HTTP::Status ();
+use HTML::HeadParser; # thanks to Kirill
 use strict;
 use Carp ();
 
 my %ImplementedBy = (); # scheme => classname
 
 
-=item $prot = new HTTP::Protocol;
+=item $prot = LWP::Parallel::Protocol->new();
 
-The LWP::Protocol constructor is inherited by subclasses. As this is a
-virtual base class this method should B<not> be called directly.
+The LWP::Parallel::Protocol constructor is inherited by subclasses. As this is
+a virtual base class this method should B<not> be called directly.
+
+Note: This is inherited from LWP::Protocol
 
 =cut
 
-sub new
-{
-    my($class) = @_;
 
-    my $self = bless {
-	'timeout' => 0,
-	'use_alarm' => 1,
-	'parse_head' => 1,
-    }, $class;
-    $self;
-}
 
-=item $prot = LWP::Parallel::Protocol::create($url)
+=item $prot = LWP::Parallel::Protocol::create($schema)
 
 Create an object of the class implementing the protocol to handle the
 given scheme. This is a function, not a method. It is more an object
@@ -77,12 +70,14 @@ use to access protocols.
 
 sub create
 {
-    my $scheme = shift;
+    my ($scheme, $ua) = @_;
     my $impclass = LWP::Parallel::Protocol::implementor($scheme) or
 	Carp::croak("Protocol scheme '$scheme' is not supported");
 
     # hand-off to scheme specific implementation sub-class
-    return $impclass->new($scheme);
+    my $protocol = $impclass->new($scheme, $ua);
+
+    return $protocol;
 }
 
 
@@ -165,11 +160,12 @@ sub receive {
                     ")");
 
 
-    my($use_alarm, $parse_head, $timeout, $max_size, $parallel) =
-      @{$self}{qw(use_alarm parse_head timeout max_size parallel)};
+    my($parse_head, $max_size, $parallel) =
+      @{$self}{qw(parse_head max_size parallel)};
 
     my $parser;
     if ($parse_head && $response->content_type eq 'text/html') {
+        require HTML::HeadParser; # LWP 5.60
 	$parser = HTML::HeadParser->new($response->{'_headers'});
     }
     
@@ -194,11 +190,12 @@ sub receive {
 	$response->add_content($$content);
 	$content_size += length($$content);
 	$entry->content_size($content_size); # update persistant size counter
-	if ($max_size && $content_size > $max_size) {
+	if (defined($max_size) && $content_size > $max_size) {
   	    LWP::Debug::debug("Aborting because size limit of " .
 	                      "$max_size bytes exceeded");
-	    my $tot = $response->header("Content-Length") || 0;
-	    $response->header("X-Content-Range", "bytes 0-$content_size/$tot");
+	    $response->push_header("Client-Aborted", "max_size");
+	    #my $tot = $response->header("Content-Length") || 0;
+	    #$response->header("X-Content-Range", "bytes 0-$content_size/$tot");
 	    return 0;
 	} 
     }
@@ -219,10 +216,11 @@ sub receive {
 	$content_size += length($$content);
 	$entry->content_size($content_size); # update persistant size counter
 	close(OUT);
-	if ($max_size && $content_size > $max_size) {
+	if (defined($max_size) && $content_size > $max_size) {
 	    LWP::Debug::debug("Aborting because size limit exceeded");
-	    my $tot = $response->header("Content-Length") || 0;
-	    $response->header("X-Content-Range", "bytes 0-$content_size/$tot");
+	    $response->push_header("Client-Aborted", "max_size");
+	    #my $tot = $response->header("Content-Length") || 0;
+	    #$response->header("X-Content-Range", "bytes 0-$content_size/$tot");
 	    return 0;
 	} 
     }
@@ -238,7 +236,8 @@ sub receive {
 	};
 	if ($@) {
 	    chomp($@);
-	    $response->header('X-Died' => $@);
+	    $response->push_header('X-Died' => $@);
+	    $response->push_header("Client-Aborted", "die");
 	} else {
 	    # pass return value from callback through to implementor class
 	  LWP::Debug::debug("return-code from Callback was '$retval'");
@@ -283,7 +282,8 @@ Inspect the F<LWP/Parallel/Protocol/http.pm> file for examples of usage.
 
 =head1 COPYRIGHT
 
-Copyright 1997-2001 Marc Langheinrich.
+Copyright 1997-2001 Marc Langheinrich
+Parts copyright 1995-2001 Gisle Aas
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.

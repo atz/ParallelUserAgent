@@ -1,6 +1,6 @@
 # -*- perl -*-
-# $Id: ftp.pm,v 1.9 2001/05/28 17:44:44 langhein Exp $
-# derived from: ftp.pm,v 1.28 2001/03/16 00:14:47 gisle Exp $
+# $Id: ftp.pm,v 1.10 2002/03/28 20:25:44 langhein Exp $
+# derived from: ftp.pm,v 1.31 2001/10/26 20:13:20 gisle Exp
 
 # Implementation of the ftp protocol (RFC 959). We let the Net::FTP
 # package do all the dirty work.
@@ -20,16 +20,15 @@ require LWP::Protocol::ftp;
 @ISA = qw(LWP::Parallel::Protocol LWP::Protocol::ftp);
 
 use strict;
-eval {
-    require Net::FTP;
-    Net::FTP->require_version(2.00);
-};
-my $init_failed = $@;
+
+# # removed (ML)
+# eval { ... };
+# my $init_failed = $@;
 
 =item ($socket, $second_arg) = $prot->handle_connect ($req, $proxy, $timeout);
 
 This method connects with the server on the machine and port specified
-in the $req object. If a $procy is given, it will return an error,
+in the $req object. If a $proxy is given, it will return an error,
 since the FTP protocol does not allow proxying. (See below on how such
 an error is propagated to the caller).
 
@@ -80,17 +79,50 @@ sub handle_connect {
   
   my $host     = $url->host;
   my $port     = $url->port;
+  my $user     = $url->user;
   # taken out some additional variable declarations here, that are now
   # only needed in 'write_request' method.  
 
-  my $ftp = new Net::FTP $host, Port => $port;
+  #################
+  # new in LWP 5.60
+  my $key;
+  my $conn_cache = $self->{ua}{conn_cache};
+  if ($conn_cache) {
+	$key = "$host:$port:$user";
+	$key .= ":$account" if defined($account);
+	if (my $ftp = $conn_cache->withdraw("ftp", $key)) {
+	    if ($ftp->ping) {
+		LWP::Debug::debug('Reusing old connection');
+		# save it again
+		$conn_cache->deposit("ftp", $key, $ftp);
+                # added $response object # ML
+                my $response =
+                  HTTP::Response->(&HTTP::Status::RC_OK, "Document follows");
+		return ($ftp, $response);
+	    }
+	}
+  }
+
+  # try to make a connection
+  my $ftp = LWP::Protocol::MyFTP->new($host,
+					Port => $port,
+					Timeout => $timeout,
+				       );
+  # XXX Should be some what to pass on 'Passive' (header??)
+  #################
 
   my $response;
   unless ($ftp) {
-    $response = new HTTP::Response &HTTP::Status::RC_INTERNAL_SERVER_ERROR,$@;
+    $@ =~ s/^Net::FTP: //; # new in LWP 5.60
+    $response = HTTP::Response->(&HTTP::Status::RC_INTERNAL_SERVER_ERROR,$@);
   } else {
     # Create an initial response object
-    $response = new HTTP::Response &HTTP::Status::RC_OK, "Document follows";
+    $response = HTTP::Response->(&HTTP::Status::RC_OK, "Document follows");
+    #################
+    # new in LWP 5.60
+    $response->header(Server => $ftp->http_server);
+    $response->header('Client-Request-Num' => $ftp->request_count);
+    #################
     $response->request($request);
   } 
 
@@ -106,9 +138,9 @@ sub write_request {
   # overhead, we can't pass additional variables between those two
   # methods, but we need some of the values in both routines.  We
   # allow the account to be specified in the "Account" header
-  my $acct     = $request->header('Account');
+  my $account  = $request->header('Account');
   
-  my $url = $request->url;
+  my $url      = $request->url;
   my $host     = $url->host;
   my $port     = $url->port;
   my $user     = $url->user;
@@ -128,28 +160,33 @@ sub write_request {
 
   # from here on mostly directly clipped from the original
   # Protocol::ftp. Changes are marked with "# ML" comment
-
-  my $mess = $ftp->message;	# welcome message
-
-  LWP::Debug::debug($mess);
-  $mess =~ s|\n.*||s; # only first line left  
-    $mess =~ s|\s*ready\.?$||;
-  # Make the version number more HTTP like
-  $mess =~ s|\s*\(Version\s*|/| and $mess =~ s|\)$||;
-  $response->header("Server", $mess);
-  
+ 
   # from here on it seems FTP will handle timeouts, right? # ML
   $ftp->timeout($timeout) if $timeout;
   
   LWP::Debug::debug("Logging in as $user (password $password)...");
-  unless ($ftp->login($user, $password, $acct)) {
+  unless ($ftp->login($user, $password, $account)) {
     # Unauthorized.  Let's fake a RC_UNAUTHORIZED response
-    my $res = new HTTP::Response &HTTP::Status::RC_UNAUTHORIZED, $ftp->message;
+    my $mess = scalar($ftp->message);
+    LWP::Debug::debug($mess);
+    $mess =~ s/\n$//;
+    my $res =  HTTP::Response->new(&HTTP::Status::RC_UNAUTHORIZED, $mess);
+    $res->header("Server", $ftp->http_server);
     $res->header("WWW-Authenticate", qq(Basic Realm="FTP login"));
     return (undef, $res); # ML
   }
   LWP::Debug::debug($ftp->message);
-  
+
+  #################
+  # new in LWP 5.60
+  my $home = $ftp->pwd;
+  LWP::Debug::debug("home: '$home'");
+  $ftp->home($home);
+
+  my $conn_cache = $self->{ua}{conn_cache};
+  $conn_cache->deposit("ftp", $key, $ftp) if $conn_cache;
+  #################
+
   # Get & fix the path
   my @path =  $url->path_segments;
   # removed in LWP 5.48
@@ -196,6 +233,39 @@ sub write_request {
       }
     }
     # end_of_new_stuff
+
+    #################
+    # new in LWP 5.60
+
+    # We'll use this later to abort the transfer if necessary. 
+    # if $max_size is defined, we need to abort early. Otherwise, it's
+    # a normal transfer
+    my $max_size = undef;
+
+    # Set resume location, if the client requested it
+    if ($request->header('Range') && $ftp->supported('REST'))
+    {
+	my $range_info = $request->header('Range');
+
+	# Change bytes=2772992-6781209 to just 2772992
+	my ($start_byte,$end_byte) = $range_info =~ /.*=\s*(\d+)-(\d+)/;
+
+	if (!defined $start_byte || !defined $end_byte ||
+	  ($start_byte < 0) || ($start_byte > $end_byte) || ($end_byte < 0))
+	{
+	  return (undef, HTTP::Response->new(&HTTP::Status::RC_BAD_REQUEST,
+	     'Incorrect syntax for Range request');
+	}
+
+	$max_size = $end_byte-$start_byte;
+
+	$ftp->restart($start_byte);
+    } elsif ($request->header('Range') && !$ftp->supported('REST')) {
+	return (undef,HTTP::Response->new(&HTTP::Status::RC_NOT_IMPLEMENTED,
+         "Server does not support resume.");
+    }
+    ################
+
 
     my $data;			# the data handle
     LWP::Debug::debug("retrieve file?");
@@ -244,8 +314,8 @@ sub write_request {
 	$response->header('Content-Type' => 'text/html');
 	$content = "<HEAD><TITLE>File Listing</TITLE>\n";
 	my $base = $request->url->clone;
-	my $path = $base->epath;
-	$base->epath("$path/") unless $path =~ m|/$|;
+	my $path = $base->path;
+	$base->path("$path/") unless $path =~ m|/$|;
 	$content .= qq(<BASE HREF="$base">\n</HEAD>\n);
 	$content .= "<BODY>\n<UL>\n";
 	for (File::Listing::parse_dir(\@lsl, 'GMT')) {
@@ -337,7 +407,12 @@ sub read_chunk {
     my $bytes_read;
     # decide whether to use 'read' or 'sysread'
     $bytes_read = $data->sysread( $buf, $size );	# IO::Socket
-        
+    
+    ## XXX find a way here to check maxsize (line 298 in LWP::Protocol::ftp)
+    ## problem: get current size of response from entry object.   
+    ## trim buf-content if necessary
+    ## return undef at the end when we're done, no?
+
     # parse data from server
     my $retval = $self->receive($arg, $response, \$buf, $entry);
     # A return value lower than zero means a command from our 
