@@ -1,9 +1,9 @@
 # -*- perl -*-
-# $Id: Parallel.pm,v 1.20 2003/05/26 08:03:01 langhein Exp $
+# $Id: Parallel.pm,v 1.21 2004/02/10 15:19:18 langhein Exp $
 
 package LWP::Parallel;
 
-$VERSION = '2.56';
+$VERSION = '2.57';
 sub Version { $VERSION };
 
 require 5.004;
@@ -27,9 +27,9 @@ LWP::Parallel - Extension for LWP to allow parallel HTTP and FTP access
 =head2 Introduction
 
 ParallelUserAgent is an extension to the existing libwww module. It
-allows you to take a list of URLs (currently supports only HTTP and
-FTP protocol) and connect to all of them _in parallel_, then wait for
-the results to come in.
+allows you to take a list of URLs (it currently supports HTTP, FTP, and
+FILE URLs. HTTPS might work, too) and connect to all of them _in parallel_,
+then wait for the results to come in.
 
 See the Parallel::UserAgent for how to create a LWP UserAgent that
 will access multiple Web resources in parallel. The Parallel::RobotUA
@@ -292,7 +292,7 @@ on how to use this library.
 
 =head1 COPYRIGHT
 
-Copyright 1997-2001 Marc Langheinrich.
+Copyright 1997-2004 Marc Langheinrich E<lt>marclang@cpan.org>
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.

@@ -1,5 +1,5 @@
 # -*- perl -*-
-# $Id: UserAgent.pm,v 1.30 2003/03/11 16:49:26 langhein Exp $
+# $Id: UserAgent.pm,v 1.31 2004/02/10 15:19:19 langhein Exp $
 # derived from: UserAgent.pm,v 2.1 2001/12/11 21:11:29 gisle Exp $
 #         and:  ParallelUA.pm,v 1.16 1997/07/23 16:45:09 ahoy Exp $
 
@@ -1267,7 +1267,7 @@ sub handle_response
 	$referral->remove_header('Host');
 
 	# don't do anything unless we're allowed to redirect
-	return $response unless $self->redirect_ok($referral);
+	return $response unless $self->redirect_ok($referral, $response);  # fix by th. boutell
 
 	# Check for loop in the redirects
 	my $count = 0;
@@ -1537,7 +1537,7 @@ L<LWP::UserAgent>
 
 =head1 COPYRIGHT
 
-Copyright 1997-2001 Marc Langheinrich E<lt>marclang@cpan.org>
+Copyright 1997-2004 Marc Langheinrich E<lt>marclang@cpan.org>
 
 This library is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.

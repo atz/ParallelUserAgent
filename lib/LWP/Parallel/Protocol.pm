@@ -1,5 +1,5 @@
 #  -*- perl -*-
-# $Id: Protocol.pm,v 1.9 2003/05/26 08:03:50 langhein Exp $
+# $Id: Protocol.pm,v 1.10 2004/02/10 15:19:19 langhein Exp $
 # derived from: Protocol.pm,v 1.39 2001/10/26 19:00:21 gisle Exp
 
 package LWP::Parallel::Protocol;
@@ -37,7 +37,7 @@ methods and functions are provided:
 
 require LWP::Protocol;
 @ISA = qw(LWP::Protocol);
-$VERSION = sprintf("%d.%02d", q$Revision: 1.9 $ =~ /(\d+)\.(\d+)/);
+$VERSION = sprintf("%d.%02d", q$Revision: 1.10 $ =~ /(\d+)\.(\d+)/);
 
 
 use HTTP::Status ();
@@ -294,8 +294,8 @@ Inspect the F<LWP/Parallel/Protocol/http.pm> file for examples of usage.
 
 =head1 COPYRIGHT
 
-Copyright 1997-2001 Marc Langheinrich
-Parts copyright 1995-2001 Gisle Aas
+Copyright 1997-2004 Marc Langheinrich E<lt>marclang@cpan.org>
+Parts copyright 1995-2004 Gisle Aas
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.

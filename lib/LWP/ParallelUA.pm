@@ -1,5 +1,5 @@
 # -*- perl -*-
-# $Id: ParallelUA.pm,v 1.5 2001/07/26 09:26:22 langhein Exp $
+# $Id: ParallelUA.pm,v 1.6 2004/02/10 15:19:19 langhein Exp $
 
 package LWP::ParallelUA;
 use Exporter();
@@ -50,7 +50,7 @@ L<LWP::Parallel::UserAgent>
 
 =head1 COPYRIGHT
 
-Copyright 1997-2001 Marc Langheinrich.
+Copyright 1997-2004 Marc Langheinrich E<lt>marclang@cpan.org>
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.

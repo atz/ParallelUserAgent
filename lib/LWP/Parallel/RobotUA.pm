@@ -1,5 +1,5 @@
 # -*- perl -*-
-# $Id: RobotUA.pm,v 1.11 2003/03/11 16:49:26 langhein Exp $
+# $Id: RobotUA.pm,v 1.12 2004/02/10 15:19:19 langhein Exp $
 # derived from: RobotUA.pm,v 1.18 2000/04/09 11:21:11 gisle Exp $
 
 
@@ -8,7 +8,7 @@ package LWP::Parallel::RobotUA;
 use LWP::Parallel::UserAgent qw(:CALLBACK);
 require LWP::RobotUA;
 @ISA = qw(LWP::Parallel::UserAgent LWP::RobotUA Exporter);
-$VERSION = sprintf("%d.%02d", q$Revision: 1.11 $ =~ /(\d+)\.(\d+)/);
+$VERSION = sprintf("%d.%02d", q$Revision: 1.12 $ =~ /(\d+)\.(\d+)/);
 
 @EXPORT = qw(); 
 # callback commands
@@ -554,7 +554,7 @@ L<LWP::Parallel::UserAgent>, L<LWP::RobotUA>, L<WWW::RobotRules>
 
 =head1 COPYRIGHT
 
-Copyright 1997-2001 Marc Langheinrich E<lt>marclang@cpan.org>
+Copyright 1997-2004 Marc Langheinrich E<lt>marclang@cpan.org>
 
 This library is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
