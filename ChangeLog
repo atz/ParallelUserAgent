@@ -1,5 +1,12 @@
 Mon May 08 2000 Marc Langheinrich <marclang@cs.washington.edu>
 
+ o CPAN Release 2.49
+
+ o added initial https support
+   (as suggested by Marian Szabo <mszabo@coralwave.com>)
+
+Mon May 08 2000 Marc Langheinrich <marclang@cs.washington.edu>
+
  o CPAN Release 2.48a
 
  o Added (empty) DESTROY method to Parallel::UserAgent::Entry in 

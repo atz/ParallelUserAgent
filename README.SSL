@@ -1,0 +1,9 @@
+SSL SUPPORT
+-----------
+
+If you enabled your libwww-perl package to support SSL/TLSv1 with its HTTP client
+and server classes, you can readily access HTTPS sites with ParallelUA as well.
+
+Please refer to README.SSL in the libwww-perl distribution for further
+information on how to enable SSL support in libwww-perl (and therefor in
+ParallelUA).

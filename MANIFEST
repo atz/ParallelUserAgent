@@ -1,6 +1,7 @@
 ChangeLog
 MANIFEST
 README
+README.SSL
 Makefile.PL
 lib/Bundle/ParallelUA.pm
 lib/LWP/Parallel.pm
@@ -10,6 +11,7 @@ lib/LWP/Parallel/UserAgent.pm
 lib/LWP/Parallel/RobotUA.pm
 lib/LWP/Parallel/Protocol.pm
 lib/LWP/Parallel/Protocol/http.pm
+lib/LWP/Parallel/Protocol/https.pm
 lib/LWP/Parallel/Protocol/ftp.pm
 t/parallel.t
 t/compatibility.t

@@ -3,7 +3,7 @@
 
 package Bundle::ParallelUA;
 
-$VERSION = '2.48a'; 
+$VERSION = '2.49'; 
 
 1;
 
@@ -31,7 +31,10 @@ LWP::Parallel        - Parallel User Agent itself
 
 =head1 DESCRIPTION
 
+This bundle defines all required modules for ParallelUserAgent.
+
 =head1 AUTHOR
 
 Marc Langheinrich
 
+=cut

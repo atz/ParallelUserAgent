@@ -410,7 +410,9 @@ sub register {
 
   # so far Parallel::UserAgent can handle only http and ftp requests
   # (anybody volunteering to porting the rest of the protocols?!)
-  unless ( $request->url->scheme eq 'http' or $request->url->scheme eq 'ftp' ){
+  unless ( $request->url->scheme eq 'http' or $request->url->scheme eq 'ftp'
+           # https suggestion by <mszabo@coralwave.com>
+           or $request->url->scheme eq 'https' ){
     $response->code (&HTTP::Status::RC_NOT_IMPLEMENTED);
     $response->message ("Unknown Scheme: ". $request->url->scheme);
     Carp::carp "Parallel::UserAgent can not handle '". $request->url->scheme .
