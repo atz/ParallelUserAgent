@@ -1,6 +1,6 @@
 # -*- perl -*-
-# $Id: UserAgent.pm,v 1.4 1998/03/27 09:07:35 marc Exp $
-# derived from: UserAgent.pm,v 1.59 1998/03/20 05:50:32 aas Exp $
+# $Id: UserAgent.pm,v 1.5 1998/04/27 04:14:55 marc Exp $
+# derived from: UserAgent.pm,v 1.60 1998/04/02 13:06:05 aas Exp $
 #         and:  ParallelUA.pm,v 1.16 1997/07/23 16:45:09 ahoy Exp $
 
 package LWP::Parallel::UserAgent::Entry;
@@ -1065,15 +1065,13 @@ sub handle_response
 	return $response unless $self->redirect_ok($referral);
 
 	# Check for loop in the redirects
+	my $count = 0;
 	my $r = $response;
 	while ($r) {
-	    if ($r->request->url->as_string eq $referral_uri->as_string) {
-		# loop detected
+	    if (++$count > 13 ||
+		$r->request->url->as_string eq $referral_uri->as_string) {
 		$response->header("Client-Warning" =>
 				  "Redirect loop detected");
-
-#	      LWP::Debug::trace("<- ($response [".$response->header.'] )');
-
 		return $response;
 	    }
 	    $r = $r->previous;

@@ -55,7 +55,7 @@ running the testscript ("make test") and see if it tests ok anyways
 
 Checked versions so far:
 
-	libwww-5.20 - 5.22		ok
+	libwww-5.20 - 5.32		ok
 	libwww-5.19			untested
 	libwww-5.18 and below		not ok!
 
@@ -103,7 +103,7 @@ it under the same terms as Perl itself.
 Have fun!
 
 --
-$Revision: 1.3 $
+$Revision: 1.4 $
 
 
 

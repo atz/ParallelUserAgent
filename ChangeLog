@@ -1,3 +1,11 @@
+Mon Apr 27 1998 Marc Langheinrich <marclang@cs.washington.edu>
+
+ o CPAN Release 2.32
+	
+ o Updated libwww-5.31 bugfixes (one in UserAgent.pm,v 1.60)
+
+ o Checked against libwww-5.31 and 5.32	
+	
 Fri Mar 27 1998 Marc Langheinrich <marclang@cs.washington.edu>
 
  o First official CPAN release, version 2.31
