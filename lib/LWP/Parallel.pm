@@ -1,9 +1,9 @@
 # -*- perl -*-
-# $Id: Parallel.pm,v 1.5 1998/11/10 06:07:11 marc Exp $
+# $Id: Parallel.pm,v 1.6 1998/11/17 00:48:21 marc Exp $
 
 package LWP::Parallel;
 
-$VERSION = '2.38';
+$VERSION = '2.39';
 sub Version { $VERSION };
 
 require 5.004;

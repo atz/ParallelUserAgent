@@ -1,14 +1,26 @@
 # This -*- perl -*- script writes the Makefile for LWP::Parallel
-# $Id: Makefile.PL,v 1.3 1998/03/13 03:18:22 marc Exp $
+# $Id: Makefile.PL,v 1.4 1998/11/24 00:12:59 marc Exp $
 use ExtUtils::MakeMaker;
 
 print "Checking your version of libwww......";
-my $required = "5.20";
-
+my $required  = "5.20";
+my $supported = "5.36";
 eval {
     require LWP;
     my $version = LWP->Version;
     $version >= $required or die "\nLWP::Parallel only works with versions of libwww $required or greater.\nYou seem to have only version $version installed on your system\n";
+    $version <= $supported or warn <<WARNING;
+
+           **** WARNING: Unsupported Version of libwww found! ****
+
+This library only supports libwww up to version $supported. You seem to have
+version $version installed, which has not yet been tested by the package author
+for compatibility. Some or all tests might fail!
+
+Install at your own risk, or wait until a more recent version of this library
+is available.
+
+WARNING
 
     # Detailed Breakdown
     #
@@ -41,7 +53,8 @@ site near you.
 EOT
     exit;  # No need to go on
 } else {
-    print " ok\n";
+    if ($version <= $supported) { print " unsupported (but might be ok)\n"; } 
+    else { print " ok\n"; }
 }
 
 # See lib/ExtUtils/MakeMaker.pm for details of how to influence

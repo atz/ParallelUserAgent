@@ -10,7 +10,7 @@ $DEBUG = 0;
 # First we create HTTP server for testing our http protocol
 # (this is stolen from the libwww t/local/http.t file)
 
-require IO::Socket;  # make sure this work before we try to make a HTTP::Daemon
+require IO::Socket;  # make sure this works before we try to make a HTTP::Daemon
 
 # First we make ourself a daemon in another process
 my $D = shift || '';
@@ -60,7 +60,7 @@ sub handle_connection {
 
 # This is the testing script
 
-print "1..6\n";
+print "1..25\n";
 
 my $greeting = <DAEMON>;
 $greeting =~ /(<[^>]+>)/;
@@ -90,7 +90,7 @@ sub httpd_get_timeout
     $c->send_basic_header(200);
     print $c "Content-Type: text/plain\015\012";
     $c->send_crlf;
-    print $c "This page took 10 seconds";
+    print $c "This page took 4 seconds";
 }
 
 $ua->initialize;
@@ -121,6 +121,7 @@ foreach (keys %$entries) {
     print "ok 2\n";
 }
 
+#----------------------------------------------------------------
 $ua->initialize;
 print "   * for multiple requests...\n";
 
@@ -155,6 +156,64 @@ foreach (keys %$entries) {
 
 
 #----------------------------------------------------------------
+$ua->initialize;
+print "   * for mixed requests...\n";
+sub httpd_get_notimeout
+{
+    my($c)  = @_;
+    $c->send_basic_header(200);
+    print $c "Content-Type: text/plain\015\012";
+    $c->send_crlf;
+    print $c "This page took no time!";
+}
+
+sub httpd_get_sometimeout
+{
+    my($c)  = @_;
+    $c->send_basic_header(200);
+    print $c "Content-Type: text/plain\015\012";
+    $c->send_crlf;
+    print $c "This page took no time to send, but 4 seconds to close";
+    sleep(4); # do not answer for 4 seconds;
+}
+
+my @kind = ("", "no", "some");
+for $i (0..17) {
+    my $page = $i % 3;
+    $req = new HTTP::Request GET => url("/". $kind[$page] . "timeout", $base);
+    print STDERR "\tRegistering '".$req->url."'\n" if $DEBUG;
+    if ( $res = $ua->register ($req) ) { 
+	print STDERR $res->error_as_HTML;
+	print "not";
+	last;
+    } 
+}
+print "ok 5\n";
+
+$entries = $ua->wait(2); # be impatient
+$i = 6;
+foreach (keys %$entries) {
+    # each entry available under the url-string of their request contains
+    # a number of fields. The most important are $entry->request and
+    # $entry->response. 
+    $res = $entries->{$_}->response;
+    print STDERR "Answer for '",$res->request->url, "' was \t", 
+          $res->code,": ", $res->message,"\n" if $DEBUG;
+    if ($res->request->url =~ /notimeout/) {
+      print "not " unless $res->code == 200
+	  and $res->message !~ /timeout/i;
+    } elsif ($res->request->url =~ /sometimeout/) {
+      print "not " unless $res->code == 200
+	  and $res->message =~ /timeout/i;
+    } else {
+      print "not " unless $res->is_error
+	  and $res->code == 408    # timeout
+	  and $res->message =~ /timeout/i;      
+    }
+    print "ok ", $i++, "\n";
+}
+
+#----------------------------------------------------------------
 print "\nTerminating server...\n";
 sub httpd_get_quit
 {
@@ -169,7 +228,7 @@ if ( $res = $ua->register ($req) ) {
     print STDERR $res->error_as_HTML;
     print "not ";
 }
-print "ok 5\n";
+print "ok ", $i++, "\n";
 
 $entries = $ua->wait();
 foreach (keys %$entries) {
@@ -181,6 +240,6 @@ foreach (keys %$entries) {
           $res->code,": ", $res->message,"\n" if $DEBUG;
 
     print "not " unless $res->code == 503 and $res->content =~ /Bye, bye/;
-    print "ok 6\n";
+    print "ok ", $i++, "\n";
 }
 

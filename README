@@ -52,14 +52,24 @@ listed below, either upgrade to the newest libwww distribution, or try
 running the testscript ("make test") and see if it tests ok anyways
 :-) 
 
+*** Warning: The newest version of libwww (5.41 and up) breaks a lot
+*** of compatibilities! This version of ParallelUserAgent will not 
+*** work with these new versions! Please use libwww-5.36 or wait until
+*** an update of this package is available!
+
+
 Checked versions so far:
 
+*******	libwww-5.41                     not ok! ********
 	libwww-5.20 - 5.36		ok
 	libwww-5.19			untested
 	libwww-5.18 and below		not ok!
 
 Note: For optimal performance you shoul use the _latest_ version of 
       libwww-perl that is listed above (i.e. 5.36).
+
+***** Look into the t/ subdirectory in this distribution for *****
+***** some examples on how to use this library!              *****
 
 
 Remarks for users upgrading from ParallelUA 2.20:
@@ -96,6 +106,7 @@ You can join the mailing list by sending a message to
 <libwww-perl-request@ics.uci.edu> with "Subscribe" as subject.
             ^^^^^^^^
 
+
 COPYRIGHT
 
   © 1997-1998 Marc Langheinrich. All rights reserved.
@@ -107,7 +118,7 @@ it under the same terms as Perl itself.
 Have fun!
 
 --
-$Revision: 1.6 $
+$Revision: 1.8 $
 
 
 

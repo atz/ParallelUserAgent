@@ -1,3 +1,22 @@
+Tue Nov 24 1998 Marc Langheinrich <marclang@cs.washington.edu>
+
+ o CPAN Release 2.39
+
+ o Added incompatibility warning for libwww > supported ones 
+   (currently up to 5.36)
+	
+ o Added cookie jar to redirects (fix by Andrey Chernov <ache@nagual.pp.ru>)
+    	  
+Tue Nov 17 1998 Marc Langheinrich  <marclang@cs.washington.edu>
+
+ o Fixed problem with otherwise successful requests that took a
+   long time to have their handles closed. These would be set to "408
+   timeout" although all the data was already transmitted. Now the
+   existing status is preserved and the string (timeout) appended
+   instead.
+
+ o Added more timeout.t tests to make sure the above scheme works.
+
 Tue Nov 10 1998 Marc Langheinrich  <marclang@cs.washington.edu>
 
  o CPAN Release 2.38

@@ -1,5 +1,5 @@
 # -*- perl -*-
-# $Id: UserAgent.pm,v 1.13 1998/11/10 06:53:20 marc Exp $
+# $Id: UserAgent.pm,v 1.15 1998/11/24 00:13:46 marc Exp $
 # derived from: UserAgent.pm,v 1.62 1998/08/04 09:59:36 aas Exp $
 #         and:  ParallelUA.pm,v 1.16 1997/07/23 16:45:09 ahoy Exp $
 
@@ -897,9 +897,18 @@ sub wait {
 	foreach $socket ($fh_in->handles ,$fh_out->handles) {
 	  my $entry = $self->{'entries_by_sockets'}->{$socket};
 	  delete $self->{'entries_by_sockets'}->{$socket};
-	  $entry->response ($response);
-	  $response->request ($entry->request);
-	  $self->on_failure ($entry->request, $response, $entry);
+	  unless ($entry->response->code) {
+	    # don't overwrite an already existing response
+	    # (but how to deal with partial responses?)
+	    $entry->response ($response);
+	    $response->request ($entry->request);
+	    # only count as failure if we have no response yet
+	    $self->on_failure ($entry->request, $response, $entry);
+	  } else {
+	    my $res = $entry->response;
+	    $res->message ($res->message . " (timeout)");
+	    $entry->response ($res);
+	  }
 	  $self->_remove_current_connection ( $entry );
 	} 
 	# and delete from read- and write-queues
@@ -1165,6 +1174,9 @@ sub handle_response
 	    }
 	    $r = $r->previous;
 	}
+	# From: "Andrey A. Chernov" <ache@nagual.pp.ru>
+	$self->cookie_jar->extract_cookies($response)
+	    if $self->cookie_jar;
 	# register follow up request
       LWP::Debug::trace("<- (registering follow up request: $referral, $entry)");
 	return $self->register ($referral, $entry);
