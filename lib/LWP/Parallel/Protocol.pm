@@ -1,5 +1,6 @@
 #  -*- perl -*-
-# $Id: Protocol.pm,v 1.1 1998/03/05 10:18:59 marc Exp $
+# $Id: Protocol.pm,v 1.2 1999/04/15 02:01:48 marc Exp $
+# derived from: Protocol.pm,v 1.33 1999/03/19 21:46:41 gisle Exp $
 
 package LWP::Parallel::Protocol;
 
@@ -36,10 +37,10 @@ methods and functions are provided:
 
 require LWP::Protocol;
 @ISA = qw(LWP::Protocol);
-$VERSION = sprintf("%d.%02d", q$Revision: 1.1 $ =~ /(\d+)\.(\d+)/);
+$VERSION = sprintf("%d.%02d", q$Revision: 1.2 $ =~ /(\d+)\.(\d+)/);
 
 
-use HTTP::Status 'RC_INTERNAL_SERVER_ERROR';
+use HTTP::Status ();
 use strict;
 use Carp ();
 
@@ -115,7 +116,7 @@ sub implementor
         LWP::Debug::debug("Try autoloading $ic");
 	eval "require $ic";
 	if ($@) {
-	    if ($@ =~ /^Can't locate/) { #' #emacs get confused by '
+	    if ($@ =~ /Can't locate/) { #' #emacs get confused by '
 		$ic = '';
 	    } else {
 		die "$@\n";
@@ -181,12 +182,13 @@ sub receive {
   	    LWP::Debug::debug("Aborting because size limit exceeded");
 	    my $tot = $response->header("Content-Length") || 0;
 	    $response->header("X-Content-Range", "bytes 0-$content_size/$tot");
-	}
+	    return 0;
+	} 
     }
     elsif (!ref($arg)) {
 	# Mmmh. Could this take so long that we want to use alarm here?
 	unless ( open(OUT, ">>$arg") ) {
-	    $response->code(RC_INTERNAL_SERVER_ERROR);
+	    $response->code(&HTTP::Status::RC_INTERNAL_SERVER_ERROR);
 	    $response->message("Cannot write to '$arg': $!");
 	    return;
 	}
@@ -198,12 +200,13 @@ sub receive {
         LWP::Debug::debug("read " . length($$content) . " bytes");
 	print OUT $$content;
 	$content_size += length($$content);
+	close(OUT);
 	if ($max_size && $content_size > $max_size) {
 	    LWP::Debug::debug("Aborting because size limit exceeded");
 	    my $tot = $response->header("Content-Length") || 0;
 	    $response->header("X-Content-Range", "bytes 0-$content_size/$tot");
-	}
-	close(OUT);
+	    return 0;
+	} 
     }
     elsif (ref($arg) eq 'CODE') {
 	# read into callback
@@ -225,7 +228,7 @@ sub receive {
 	}
     }
     else {
-	$response->code(RC_INTERNAL_SERVER_ERROR);
+	$response->code(&HTTP::Status::RC_INTERNAL_SERVER_ERROR);
 	$response->message("Unexpected collect argument  '$arg'");
     }
     return;

@@ -53,7 +53,7 @@ use HTTP::Request;
 require WWW::RobotRules::AnyDBM_File;
 
 # display tons of debugging messages. See 'perldoc LWP::Debug'
-#use LWP::Debug qw(+);
+use LWP::Debug qw(+);
 
 # shortcut for demo URLs
 my $url = "http://localhost/index.html"; 
@@ -108,7 +108,9 @@ $pua->redirect  (1);  # follow redirects
 $pua->delay    ( 1);  # in seconds
 $pua->max_req  ( 1);  # max parallel requests per server
 $pua->max_hosts(10);  # max parallel servers accessed
- 
+
+# $pua->max_size(1);
+
 # for our own print statements that follow below:
 local($\) = ""; # ensure standard $OUTPUT_RECORD_SEPARATOR
 
@@ -121,6 +123,7 @@ foreach $req (@$reqs) {
     # argument blank so that the answer will be stored within the
     # response object (see $pua->wait further down)
     if ( $res = $pua->register ($req , \&handle_answer) ) { 
+#    if ( $res = $pua->register ($req) ) { 
 	# some requests will produce an error right away, such as
 	# request featuring currently unsupported protocols (ftp,
 	# gopher) or requests to server that failed to respond during

@@ -1,3 +1,15 @@
+Thu Apr 15 1999 Marc Langheinrich <marclang@cs.washington.edu>
+
+ o CPAN Release 2.41
+
+ o Updated changes in libwww-5.41:
+     UserAgent.pm: 1.64 -> 1.66
+     RobotUA.pm:   1.14 -> 1.15
+     Protocol.pm:  1.31 -> 1.33
+     http.pm:      1.44 -> 1.46
+
+ o Fixed $ua->max_size bug in Parallel/Protocol.pm
+	
 Tue Jan 12 1999 Marc Langheinrich <marclang@cs.washington.edu>
 
  o CPAN Release 2.40

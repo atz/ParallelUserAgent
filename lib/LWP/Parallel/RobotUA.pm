@@ -1,13 +1,14 @@
 # -*- perl -*-
-# $Id: RobotUA.pm,v 1.3 1999/01/19 06:35:43 marc Exp $
-# derived from: RobotUA.pm,v 1.14 1998/11/19 21:45:00 aas Exp $
+# $Id: RobotUA.pm,v 1.4 1999/04/15 02:01:55 marc Exp $
+# derived from: RobotUA.pm,v 1.15 1999/03/20 07:37:36 gisle Exp $
+
 
 package LWP::Parallel::RobotUA;
 
 use LWP::Parallel::UserAgent qw(:CALLBACK);
 require LWP::RobotUA;
 @ISA = qw(LWP::Parallel::UserAgent LWP::RobotUA Exporter);
-$VERSION = sprintf("%d.%02d", q$Revision: 1.3 $ =~ /(\d+)\.(\d+)/);
+$VERSION = sprintf("%d.%02d", q$Revision: 1.4 $ =~ /(\d+)\.(\d+)/);
 
 @EXPORT = qw(); 
 # callback commands
@@ -39,8 +40,8 @@ LWP::Parallel::RobotUA - A class for Parallel Web Robots
 
 This class implements a user agent that is suitable for robot
 applications.  Robots should be nice to the servers they visit.  They
-should consult the F<robots.txt> file to ensure that they are welcomed
-and they should not send too frequent requests.
+should consult the F</robots.txt> file to ensure that they are welcomed
+and they should not make requests too frequently.
 
 But, before you consider writing a robot take a look at
 <URL:http://info.webcrawler.com/mak/projects/robots/robots.html>.
@@ -62,7 +63,7 @@ In addition to LWP::Parallel::UserAgent, these methods are provided:
 =head2 $ua = LWP::RobotUA->new($agent_name, $from, [$rules])
 
 Your robot's name and the mail address of the human responsible for
-the robot (i.e. you) is required by the constructor.
+the robot (i.e. you) are required by the constructor.
 
 Optionally it allows you to specify the I<WWW::RobotRules> object to
 use. (See L<WWW::RobotRules::AnyDBM_File> for persistent caching of
@@ -139,7 +140,7 @@ sub host_wait
 
 =head2 $ua->as_string
 
-Returns a text that describe the state of the UA.
+Returns a string that describes the state of the UA.
 Mainly useful for debugging.
 
 =cut

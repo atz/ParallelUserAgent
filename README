@@ -54,13 +54,13 @@ it tests ok anyways :-)
 
 Checked versions so far:
 	
-	libwww-5.41			use ParallelUA-2.40
+	libwww-5.41 - 5.42		use ParallelUA-2.41
 	libwww-5.20 - 5.36		use up to ParallelUA-2.39
 	libwww-5.19			untested
 	libwww-5.18 and below		not ok!
 
 Note: For optimal performance you shoud use the _latest_ version of BOTH
-      libwww-perl (i.e. 5.41) and ParallelUserAgent (i.e. 2.40).
+      libwww-perl (i.e. 5.42) and ParallelUserAgent (i.e. 2.41).
 
 3. How to use it?
 -----------------
@@ -116,7 +116,7 @@ You can join the mailing list by sending a message to
 
 COPYRIGHT
 
-  © 1997-1998 Marc Langheinrich. All rights reserved.
+  © 1997-1999 Marc Langheinrich. All rights reserved.
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.
@@ -125,7 +125,7 @@ it under the same terms as Perl itself.
 Have fun!
 
 --
-$Revision: 1.10 $
+$Revision: 1.11 $
 
 
 

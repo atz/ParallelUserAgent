@@ -1,10 +1,10 @@
 # This -*- perl -*- script writes the Makefile for LWP::Parallel
-# $Id: Makefile.PL,v 1.5 1999/01/19 07:04:11 marc Exp $
+# $Id: Makefile.PL,v 1.7 1999/04/15 02:12:30 marc Exp $
 use ExtUtils::MakeMaker;
 
 print "Checking your version of libwww...";
 my $required  = "5.41";
-my $supported = "5.41";
+my $supported = "5.42";
 my $version;
 eval {
     require LWP;
@@ -54,7 +54,7 @@ site near you.
 EOT
     exit;  # No need to go on
 } else {
-    if ($version < $supported) { print " $version (unsupported, but might be ok)\n"; } 
+    if ($version < $supported) { print " ok ($version)\nNote: you should upgrade to $supported (although ParallelUA should work ok)\n"; } 
     else { print " ok\n"; }
 }
 

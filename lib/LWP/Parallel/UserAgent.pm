@@ -1,6 +1,6 @@
 # -*- perl -*-
-# $Id: UserAgent.pm,v 1.16 1999/01/19 06:35:52 marc Exp $
-# derived from: UserAgent.pm,v 1.64 1998/11/19 21:45:01 aas Exp $
+# $Id: UserAgent.pm,v 1.17 1999/04/15 02:02:03 marc Exp $
+# derived from: UserAgent.pm,v 1.66 1999/03/20 07:37:36 gisle Exp $
 #         and:  ParallelUA.pm,v 1.16 1997/07/23 16:45:09 ahoy Exp $
 
 package LWP::Parallel::UserAgent::Entry;
@@ -1345,6 +1345,11 @@ sub init_request {
 	unless $method;
     return HTTP::Response->new(&HTTP::Status::RC_BAD_REQUEST, "URL missing")
 	unless $url;
+    return HTTP::Response->new(&HTTP::Status::RC_BAD_REQUEST, "URL must be absolute")
+	unless $url->scheme;
+	
+
+    LWP::Debug::trace("$method $url");
 
     # Locate protocol to use
     my $scheme = '';
