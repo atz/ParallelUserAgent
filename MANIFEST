@@ -12,3 +12,6 @@ lib/LWP/Parallel/Protocol/http.pm
 lib/LWP/Parallel/Protocol/ftp.pm
 t/parallel.t
 t/TestScript.pl
+t/example1.pl
+t/example2.pl
+t/example3.pl

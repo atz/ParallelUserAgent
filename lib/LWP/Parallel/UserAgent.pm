@@ -1,5 +1,5 @@
 # -*- perl -*-
-# $Id: UserAgent.pm,v 1.10 1998/09/06 23:56:33 marc Exp $
+# $Id: UserAgent.pm,v 1.11 1998/09/22 01:32:05 marc Exp $
 # derived from: UserAgent.pm,v 1.62 1998/08/04 09:59:36 aas Exp $
 #         and:  ParallelUA.pm,v 1.16 1997/07/23 16:45:09 ahoy Exp $
 
@@ -104,15 +104,14 @@ LWP::Parallel::UserAgent - A class for parallel User Agents
   require LWP::Parallel::UserAgent;
   $ua = LWP::Parallel::UserAgent->new();
   ...
+
   $ua->redirect (0); # prevents automatic following of redirects
   $ua->max_hosts(5); # sets maximum number of locations accessed in parallel
   $ua->max_req  (5); # sets maximum number of parallel requests per host
   ...
   $ua->register ($request); # or
   $ua->register ($request, '/tmp/sss'); # or
-  $ua->register ($request, \&callback, 4096); # or
-#  $ua->register ($request, $fh); # anybody need this?
-#  $ua->register ($request, \&callback, '\n'); # or this?
+  $ua->register ($request, \&callback, 4096);
   ...
   $ua->wait ( $timeout ); 
   ...
@@ -130,6 +129,8 @@ Then you wait for the results by calling $ua->wait.  This method only
 returns, if all requests have returned an answer, or the Agent timed
 out.  Also, individual callback functions might indicate that the
 Agent should stop waiting for requests and return. (see $ua->register)
+
+See the file L<LWP::Parallel> for a set of simple examples.
 
 =head1 METHODS
 
@@ -916,14 +917,16 @@ sub wait {
 					  $timeout);
 	    };
 	    if ($@) {
+	      # if our call fails, we might not have a $response object, so we
+	      # have to create a new one here
 	      if ($@ =~ /^timeout/i) {
-		$response->code (&HTTP::Status::RC_REQUEST_TIMEOUT);
-		$response->message ('User-agent timeout (syswrite)');
+		$response = HTTP::Response->new(&HTTP::Status::RC_REQUEST_TIMEOUT,
+						'User-agent timeout (syswrite)');
 	      } else {
 		# remove file/line number
 		$@ =~ s/\s+at\s+\S+\s+line\s+\d+\s*//;  
-		$response->code (&HTTP::Status::RC_INTERNAL_SERVER_ERROR);
-		$response->message ($@);
+		$response = HTTP::Response->new(&HTTP::Status::RC_INTERNAL_SERVER_ERROR,
+						$@);
 	      }
 	      $self->on_failure ($request, $response, $entry);	    
 	    }

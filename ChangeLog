@@ -1,3 +1,12 @@
+Tue Sep 22 1998 Marc Langheinrich  <marclang@cs.washington.edu>
+
+ o CPAN Release 2.37
+
+ o Fixed bug in Parallel::UserAgent where timeout would fail to create
+   HTTP::Response object.
+
+ o Added some simple examples to LWP::Parallel manpage.
+	
 Mon Sep 7 1998 Marc Langheinrich  <marclang@cs.washington.edu>
 
  o CPAN Release 2.36
