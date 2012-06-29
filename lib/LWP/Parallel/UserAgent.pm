@@ -1298,7 +1298,7 @@ sub handle_response
 	unless (@challenge) {
 	    $response->header("Client-Warning" => 
 			      "Missing Authenticate header");
-	  LWP::Debug::trace("<- ($response [".$response->header.'] )');
+#	  LWP::Debug::trace("<- ($response [".$response->header.'] )');
 	    return $response;
 	}
 	
@@ -1316,7 +1316,7 @@ sub handle_response
 	  unless ($scheme =~ /^([a-z]+(?:-[a-z]+)*)$/) {
 	    $response->header("Client-Warning" => 
 			      "Bad authentication scheme '$scheme'");
-	    LWP::Debug::trace("<- ($response [".$response->header.'] )');
+#	    LWP::Debug::trace("<- ($response [".$response->header.'] )');
 	    return $response;
 	  }
 	  $scheme = $1;  # untainted now
@@ -1341,7 +1341,7 @@ sub handle_response
 	  return $class->authenticate($self, $proxy, $challenge, $response,
 				    $request, $entry->arg, $entry->size);
 	}
-        LWP::Debug::trace("<- ($response [".$response->header.'] )');
+#        LWP::Debug::trace("<- ($response [".$response->header.'] )');
 	return $response;
     }
     LWP::Debug::trace("<- standard exit ($response)");
