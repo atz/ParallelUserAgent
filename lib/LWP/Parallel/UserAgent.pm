@@ -1493,9 +1493,9 @@ sub init_request {
     $request->init_header('Range' => "bytes=0-$max_size") if $max_size;
     $cookie_jar->add_cookie_header($request) if $cookie_jar;
 
-    # Transfer some attributes to the protocol object
-    $protocol->parse_head($parse_head);
-    $protocol->max_size($max_size);
+    # Transfer some attributes to the protocol object : defensive coding because LWP::Protocol dropped parse_head (and others?) in recent versions
+    $protocol->can('parse_head') ? $protocol->parse_head($parse_head) : $protocol->_elem('parse_head', $parse_head);
+    $protocol->can('max_size'  ) ? $protocol->max_size($max_size)     : $protocol->_elem(  'max_size', $max_size  );
 
     LWP::Debug::trace ("<- (undef".
 		       ", ". (defined $proxy ? $proxy : '[undef]').
