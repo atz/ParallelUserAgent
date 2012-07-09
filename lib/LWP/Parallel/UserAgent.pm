@@ -11,33 +11,33 @@ use UNIVERSAL qw(can);
 
 # allowed fields in Parallel::UserAgent entry
 my %fields = (
-	      arg => undef, 
-	      fullpath => undef,
-	      protocol => undef,
-	      proxy => undef,
-	      redirect_ok => undef,
-	      response => undef,
-	      request => undef,
-	      size => undef, 
-	      cmd_socket => undef,
-	      listen_socket => undef,
-	      content_size => undef,
-	      );
+    arg           => undef,
+    fullpath      => undef,
+    protocol      => undef,
+    proxy         => undef,
+    redirect_ok   => undef,
+    response      => undef,
+    request       => undef,
+    size          => undef,
+    cmd_socket    => undef,
+    listen_socket => undef,
+    content_size  => undef,
+);
 
 sub new {
     my($class, $init) = @_;
 
     my $self = { 
-	_permitted => \%fields,
-	%fields, 
+        _permitted => \%fields,
+        %fields, 
     };
     $self = bless $self, $class;
 
     if ($init) {
-	foreach (keys %$init) {
-	    # call functions and initialize with given values
-	    $self->$_($init->{$_});
-	}
+        foreach (keys %$init) {
+            # call functions and initialize with given values
+            $self->$_($init->{$_});
+        }
     }
     $self;
 }
@@ -47,7 +47,7 @@ sub get {
     my @answer;
     my $field;
     foreach $field (@_) {
-	push (@answer, $self->$field() );
+        push (@answer, $self->$field() );
     }
     @answer;
 }
@@ -60,12 +60,12 @@ sub AUTOLOAD {
     my $name = $AUTOLOAD;
     $name =~ s/.*://;  # strip fully qualified portion
     unless ( exists $self->{_permitted}->{$name} ) {
-	Carp::croak "Can't access '$name' field in $type object";
+        Carp::croak "Can't access '$name' field in $type object";
     } 
     if (@_) {
-	return $self->{$name} = $_[0];
+        return $self->{$name} = $_[0];
     } else {
-	return $self->{$name};
+        return $self->{$name};
     }
 }
 
@@ -153,15 +153,14 @@ for more information on each method.
 
 =cut
 
-
 #
 # Additional attributes in addition to those found in LWP::UserAgent:
 #
-# $self->{'entries_by_sockets'} = {}	Associative Array of registered
-#                            		requests, indexed via sockets
+# $self->{'entries_by_sockets'} = {}  Associative Array of registered
+#                                     requests, indexed via sockets
 #
-# $self->{'entries_by_requests'} = {}	Associative Array of registered 
-#					requests, indexed via requests
+# $self->{'entries_by_requests'} = {} Associative Array of registered 
+#                                     requests, indexed via requests
 #
 
 =item $ua = LWP::Parallel::UserAgent->new();
@@ -185,9 +184,9 @@ sub new {
     $self = bless $self, $class;
 
     # handle responses per default
-    $self->{'handle_response'} 	 = 1;
+    $self->{'handle_response'}   = 1;
     # do not perform nonblocking connects per default
-    $self->{'nonblock'} = 0;
+    $self->{'nonblock'}          = 0;
     # don't handle duplicates per default
     $self->{'handle_duplicates'} = 0;
     # do not use ordered lists per default
@@ -196,8 +195,8 @@ sub new {
     $self->{'remember_failures'} = 0;
 
     # supply defaults
-    $self->{'max_hosts'} 	= 7;
-    $self->{'max_req'}		= 5;
+    $self->{'max_hosts'}         = 7;
+    $self->{'max_req'}           = 5;
 
     $self->initialize;
 }
@@ -220,10 +219,9 @@ sub initialize {
     my $self = shift;
 
     # list of entries
-    $self->{'entries_by_sockets'} = {};   
+    $self->{'entries_by_sockets'}  = {};   
     $self->{'entries_by_requests'} = {};
-
-    $self->{'previous_requests'}  = {};
+    $self->{'previous_requests'}   = {};
 
     # connection handling
     $self->{'current_connections'} = {}; # hash
@@ -235,7 +233,7 @@ sub initialize {
     $self->{'seen_request'} = {};
 
     # select objects for reading & writing
-    $self->{'select_in'} = IO::Select->new();
+    $self->{'select_in'}  = IO::Select->new();
     $self->{'select_out'} = IO::Select->new();
 
     $self;
@@ -253,8 +251,8 @@ requests only.
 
 sub redirect {
     my $self = shift;
-  LWP::Debug::trace("($_[0])");
-    $self->{'handle_response'} = $_[0]  if defined $_[0];
+    LWP::Debug::trace("($_[0])");
+    $self->{'handle_response'} = $_[0] if defined $_[0];
 }
 
 =item $ua->nonblock ( $ok )
@@ -269,8 +267,8 @@ nonblocking connects turn out to be stable enough.)
 
 sub nonblock {
     my $self = shift;
-  LWP::Debug::trace("($_[0])");
-    $self->{'nonblock'} = $_[0]  if defined $_[0];
+    LWP::Debug::trace("($_[0])");
+    $self->{'nonblock'} = $_[0] if defined $_[0];
 }
 
 
@@ -283,8 +281,8 @@ duplicate requests.  The standard value is 'false'.
 
 sub duplicates {
     my $self = shift;
-  LWP::Debug::trace("($_[0])");
-    $self->{'handle_duplicates'} = $_[0]  if defined $_[0];
+    LWP::Debug::trace("($_[0])");
+    $self->{'handle_duplicates'} = $_[0] if defined $_[0];
 }
 
 =item $ua->in_order ( $ok )
@@ -297,9 +295,9 @@ in an apparently random order.
 =cut
 
 sub in_order {
-  my $self = shift;
-  LWP::Debug::trace("($_[0])");
-  $self->{'handle_in_order'} = $_[0]  if defined $_[0];
+    my $self = shift;
+    LWP::Debug::trace("($_[0])");
+    $self->{'handle_in_order'} = $_[0] if defined $_[0];
 }
 
 =item $ua->remember_failures ( $yes )
@@ -313,9 +311,9 @@ particular site.
 =cut
 
 sub remember_failures {
-  my $self = shift;
-  LWP::Debug::trace("($_[0])");
-  $self->{'remember_failures'} = $_[0]  if defined $_[0];
+    my $self = shift;
+    LWP::Debug::trace("($_[0])");
+    $self->{'remember_failures'} = $_[0]  if defined $_[0];
 }
 
 =item $ua->max_hosts ( $max )
@@ -331,7 +329,7 @@ is, multiple server on the same host (i.e. one server running on port
 
 sub max_hosts {
     my $self = shift;
-  LWP::Debug::trace("($_[0])");
+    LWP::Debug::trace("($_[0])");
     $self->{'max_hosts'} = $_[0]  if defined $_[0];
 }
 
@@ -344,7 +342,7 @@ parallel. The default value is 5.
 
 sub max_req {
     my $self = shift;
-  LWP::Debug::trace("($_[0])");
+    LWP::Debug::trace("($_[0])");
     $self->{'max_req'} = $_[0]  if defined $_[0];
 }
 
@@ -411,12 +409,12 @@ sub register {
   unless (ref($request) and $request->can('url')) {
     Carp::carp "Can't use '$request' as an HTTP::Request object. Ignoring";
     return LWP::UserAgent::_new_response($request, &HTTP::Status::RC_NOT_IMPLEMENTED,
-		               "Unknown request type: '$request'");
+                           "Unknown request type: '$request'");
   }
   LWP::Debug::debug("(".$request->url->as_string .
-		    ", ". (defined $arg ? $arg : '[undef]') . 
-		    ", ". (defined $size ? $size : '[undef]') .
-		    ", ". (defined $redirect ? $redirect : '[undef]') . ")");
+                ", ". (defined $arg      ? $arg      : '[undef]') . 
+                ", ". (defined $size     ? $size     : '[undef]') .
+                ", ". (defined $redirect ? $redirect : '[undef]') . ")");
   
   my($failed_connections,$remember_failures,$handle_duplicates,
      $previous_requests)= @{$self}{qw(failed_connections
@@ -431,12 +429,12 @@ sub register {
 
   # so far Parallel::UserAgent can handle http, ftp, and file requests
   # (anybody volunteering to porting the rest of the protocols?!)
-  unless ( $request->url->scheme eq 'http' or $request->url->scheme eq 'ftp'
-           # https suggestion by <mszabo@coralwave.com>
-           or $request->url->scheme eq 'https'
-	   # file scheme implementation by
-	   or $request->url->scheme eq 'file'
-	   ){
+  unless( $request->url->scheme eq 'http' or $request->url->scheme eq 'ftp'
+       # https suggestion by <mszabo@coralwave.com>
+       or $request->url->scheme eq 'https'
+       # file scheme implementation by
+       or $request->url->scheme eq 'file'
+  ){
     $response->code (&HTTP::Status::RC_NOT_IMPLEMENTED);
     $response->message ("Unknown Scheme: ". $request->url->scheme);
     Carp::carp "Parallel::UserAgent can not handle '". $request->url->scheme .
@@ -444,7 +442,7 @@ sub register {
     # simulate immediate response from server
     $self->on_failure ($request, $response);
     return $response;
-  }	
+  }
   
   my $netloc = $self->_netloc($request->url); 
   
@@ -490,14 +488,14 @@ sub register {
   } else {
     # called first time, create new entry object
     $size ||= 8192;
-    $entry = LWP::Parallel::UserAgent::Entry->new( { 
-      request  	=> $request, 
-      response 	=> $response, 
-      arg 	=> $arg, 
-      size	=> $size, 
-      content_size => 0,
-      redirect_ok => $self->{'handle_response'},
-    } );
+    $entry = LWP::Parallel::UserAgent::Entry->new({
+            request      => $request,
+            response     => $response,
+            arg          => $arg,
+            size         => $size,
+            content_size => 0,
+            redirect_ok  => $self->{'handle_response'},
+    });
     # if the user specified 
     $entry->redirect_ok($redirect) if defined $redirect;
     
@@ -506,8 +504,7 @@ sub register {
     
     # new requests are put at the end
     #  (first make sure we have an array to push things onto)
-    $self->{'pending_connections'}->{$netloc} = []
-      unless $self->{'pending_connections'}->{$netloc};
+    $self->{'pending_connections'}->{$netloc} ||= [];
     push (@{$self->{'pending_connections'}->{$netloc}}, $entry);
     push (@{$self->{'ordpend_connections'}}, $entry);
   }
@@ -524,7 +521,7 @@ sub register {
 # if necessary.  Test to ensure url->scheme doesn't return undef (JB)
 sub _netloc {
     my $self = shift;
-    my $url = shift;
+    my $url  = shift;
 
     my $netloc;
     if ($url->scheme eq 'file') {
@@ -572,37 +569,36 @@ sub _make_connections_in_order {
 # care about screwing up our list of pending connections. This will
 # speed up our iteration through the list
 sub _make_connections_unordered {
-  my $self = shift;
-  LWP::Debug::trace('()');
-  
-  my ($entry, $queue, $netloc);
-  # check every host in sequence (use 'each' for better performance)
-  my %delete;
- SERVER:
-  while (($netloc, $queue) = each %{$self->{'pending_connections'}}) {
-    # get first entry from pending connections at this host
-  ENTRY:
-    while ( $entry = shift @$queue ) {
-      unless ( $self->_check_bandwith($entry) ) {
-	# we don't have enough bandwith -- put entry back on queue
-	LWP::Debug::debug("Not enough bandwidth for request to $netloc");
-	unshift @$queue, $entry;
-	# we can stop here for this server
-	next SERVER;
-      }
-    } # of while ENTRY
-    # mark for deletion if we emptied the queue at this location
-  LWP::Debug::debug("Queue for $netloc contains ". scalar @$queue . " pending connections");
-    $delete{$netloc}++ unless scalar @$queue;
-  } # of while SERVER
-  # delete all netlocs that we completely handled
-  foreach (keys %delete) { 
-    LWP::Debug::debug("Deleting queue for $_");
-      delete $self->{'pending_connections'}->{$_} 
-  }
+    my $self = shift;
+    LWP::Debug::trace('()');
+
+    my ($entry, $queue, $netloc);
+    # check every host in sequence (use 'each' for better performance)
+    my %delete;
+    SERVER:
+    while (($netloc, $queue) = each %{$self->{'pending_connections'}}) {
+        # get first entry from pending connections at this host
+        ENTRY:
+        while ( $entry = shift @$queue ) {
+            unless ( $self->_check_bandwith($entry) ) {
+                # we don't have enough bandwith -- put entry back on queue
+                LWP::Debug::debug("Not enough bandwidth for request to $netloc");
+                unshift @$queue, $entry;
+                # we can stop here for this server
+                next SERVER;
+            }
+        } # END while ENTRY
+        # mark for deletion if we emptied the queue at this location
+        LWP::Debug::debug("Queue for $netloc contains ". scalar @$queue . " pending connections");
+        $delete{$netloc}++ unless scalar @$queue;
+    } # END while SERVER
+    foreach (keys %delete) {     # delete all netlocs that we completely handled
+        LWP::Debug::debug("Deleting queue for $_");
+        delete $self->{'pending_connections'}->{$_};
+    }
 }
 
-	
+
 # this method checks the available bandwith and either connects
 # the request and returns 1, or, in case we didn't have enough
 # bandwith, returns undef
@@ -618,40 +614,40 @@ sub _check_bandwith {
     my $netloc = $self->_netloc($url);
 
     if ( $remember_failures and $failed_connections->{$netloc} ) {
-	$response->code (&HTTP::Status::RC_INTERNAL_SERVER_ERROR);
-	$response->message ("Server unavailable");
-	# simulate immediate response from server
-	$self->on_failure ($request, $response, $entry);
-	return 1;
+        $response->code (&HTTP::Status::RC_INTERNAL_SERVER_ERROR);
+        $response->message ("Server unavailable");
+        # simulate immediate response from server
+        $self->on_failure ($request, $response, $entry);
+        return 1;
     }
 
     if ( $self->_active ($netloc) ) {
-	if ( $self->_req_available ( $url ) ) {
-	    $self->on_connect ( $request, $response, $entry );
-	    unless ( $self->_connect ( $entry ) ) {
-		# only increase connection count if _connect doesn't
-		# return error
-		$self->{'current_connections'}->{$netloc}++;
-	    } else {
-	        # calling ->on_failure is done within ->_connect
-		$self->{'failed_connections'}->{$netloc}++;
-	    }
-	} else { 
-	  LWP::Debug::debug ("No open request-slots available");
-	    return; };
+        if ( $self->_req_available ( $url ) ) {
+            $self->on_connect ( $request, $response, $entry );
+            unless ( $self->_connect ( $entry ) ) {
+                # only increase connection count if _connect doesn't return error
+                $self->{'current_connections'}->{$netloc}++;
+            } else {
+                # calling ->on_failure is done within ->_connect
+                $self->{'failed_connections'}->{$netloc}++;
+            }
+        } else { 
+            LWP::Debug::debug("No open request-slots available");
+            return;
+        }
     } elsif ( $self->_hosts_available ) {
-	$self->on_connect ( $request, $response, $entry );
-	unless ( $self->_connect ( $entry ) ) {
-	    # only increase connection count if _connect doesn't return error
-	    $self->{'current_connections'}->{$netloc}++;
-	} else {
-	    # calling ->on_failure is done within ->_connect
-	    LWP::Debug::debug ("Failed connection for '" . $netloc ."'");
-	    $self->{'failed_connections'}->{$netloc}++;
-	}
+        $self->on_connect ( $request, $response, $entry );
+        unless ( $self->_connect ( $entry ) ) {
+            # only increase connection count if _connect doesn't return error
+            $self->{'current_connections'}->{$netloc}++;
+        } else {
+            # calling ->on_failure is done within ->_connect
+            LWP::Debug::debug("Failed connection for '" . $netloc ."'");
+            $self->{'failed_connections'}->{$netloc}++;
+        }
     } else {
-      LWP::Debug::debug ("No open host-slots available");
-	return;
+        LWP::Debug::debug("No open host-slots available");
+        return;
     }
     # indicate success here
     return 1;
@@ -680,7 +676,7 @@ sub _hosts_available {
 sub _connect {
   my ($self, $entry) = @_;
   LWP::Debug::trace("($entry [".$entry->request->url."] )");
-  local($SIG{"__DIE__"});	# protect against user defined die handlers
+  local($SIG{"__DIE__"});    # protect against user defined die handlers
   
   my ( $request, $response ) = $entry->get( qw(request response) );
   
@@ -700,24 +696,22 @@ sub _connect {
   # figure out host and connect to site
   if ($use_eval) {
     eval { 
-      ($socket, $fullpath) = 
-	 $protocol->handle_connect ($request, $proxy, $timeout, $nonblock );
+      ($socket, $fullpath) = $protocol->handle_connect($request, $proxy, $timeout, $nonblock);
     };
     if ($@) {
       if ($@ =~ /^timeout/i) {
-	$response->code (&HTTP::Status::RC_REQUEST_TIMEOUT);
-	$response->message ('User-agent timeout');
-      } else {
-	# remove file/line number
-	# $@ =~ s/\s+at\s+\S+\s+line\s+\d+.*//s;  
-	$response->code (&HTTP::Status::RC_INTERNAL_SERVER_ERROR);
-	$response->message ($@);
+        $response->code (&HTTP::Status::RC_REQUEST_TIMEOUT);
+        $response->message ('User-agent timeout');
+          } else {
+        # remove file/line number
+        # $@ =~ s/\s+at\s+\S+\s+line\s+\d+.*//s;  
+        $response->code (&HTTP::Status::RC_INTERNAL_SERVER_ERROR);
+        $response->message ($@);
       }
     }
   } else {
     # user has to handle any dies, usually timeouts
-    ($socket, $fullpath) = 
-	 $protocol->handle_connect ($request, $proxy, $timeout, $nonblock );
+    ($socket, $fullpath) = $protocol->handle_connect ($request, $proxy, $timeout, $nonblock );
   }
 
   unless ($socket) {
@@ -729,11 +723,11 @@ sub _connect {
       # its ->code and ->message methods directly, we can affect the
       # original instead!)
       if (ref($fullpath) =~ /response/i) {
-	$response->code ($fullpath->code);
-	$response->message ($fullpath->message);
+        $response->code ($fullpath->code);
+        $response->message ($fullpath->message);
       } else {
-	$response->code (&HTTP::Status::RC_INTERNAL_SERVER_ERROR);
-	$response->message ("Failed on connect for unknown reasons");
+        $response->code (&HTTP::Status::RC_INTERNAL_SERVER_ERROR);
+        $response->message ("Failed on connect for unknown reasons");
       }
     }
   }
@@ -748,7 +742,7 @@ sub _connect {
     $entry->fullpath($fullpath);
     $entry->proxy($proxy);
     $entry->cmd_socket($socket);
-    $self->{'entries_by_sockets'}->{$socket}   = $entry;
+    $self->{'entries_by_sockets'}->{$socket} = $entry;
 #  LWP::Debug::debug ("Socket is $socket");
     # last not least: register socket with (write-) Select object
     $self->_add_out_socket($socket);
@@ -761,20 +755,20 @@ sub _connect {
 # references to it's socket are removed, and that the counter for its
 # netloc is properly decremented.
 sub _remove_current_connection {
-  my ($self, $entry ) = @_;
-  LWP::Debug::trace("($entry [".$entry->request->url."] )");
+    my ($self, $entry ) = @_;
+    LWP::Debug::trace("($entry [".$entry->request->url."] )");
 
-  $entry->cmd_socket(undef);
-  $entry->listen_socket(undef);
+    $entry->cmd_socket(undef);
+    $entry->listen_socket(undef);
 
-  my $netloc = $self->_netloc($entry->request->url);
-  if ( $self->_active ($netloc) ) {
-    delete $self->{'current_connections'}->{$netloc}
-    unless --$self->{'current_connections'}->{$netloc};
-  } else {
-    # this is serious! better stop here
-    Carp::confess "No connections for '$netloc'";
-  }
+    my $netloc = $self->_netloc($entry->request->url);
+    if ( $self->_active ($netloc) ) {
+        delete $self->{'current_connections'}->{$netloc}
+        unless --$self->{'current_connections'}->{$netloc};
+    } else {
+        # this is serious! better stop here
+        Carp::confess "No connections for '$netloc'";
+    }
 }
 
 =item $ua->on_connect ( $request, $response, $entry ) 
@@ -786,8 +780,8 @@ the User Agent.
 =cut
 
 sub on_connect {
-  my ($self, $request, $response, $entry) = @_;  
-  LWP::Debug::trace("(".$request->url->as_string.")");
+    my ($self, $request, $response, $entry) = @_;  
+    LWP::Debug::trace("(".$request->url->as_string.")");
 }
 
 =item $ua->on_failure ( $request, $response, $entry )
@@ -799,8 +793,8 @@ registration that failed.
 =cut
 
 sub on_failure {
-  my ($self, $request, $response, $entry) = @_;
-  LWP::Debug::trace("(".$request->url->as_string.")");
+    my ($self, $request, $response, $entry) = @_;
+    LWP::Debug::trace("(".$request->url->as_string.")");
 }
 
 =item $ua->on_return ( $request, $response, $entry ) 
@@ -828,11 +822,10 @@ writing a HUGE if..elsif..else.. branch in this global method.
 
 sub on_return {
   my ($self, $request, $response, $entry) = @_;
-  LWP::Debug::trace("(".join (", ",$request->url->as_string,
-			      (defined $response->code ?
-			        $response->code : '[undef]'),
-			      (defined $response->message ?
-			        $response->message : '[undef]')) .")");
+  LWP::Debug::trace("(" . join (", ", $request->url->as_string,
+      (defined $response->code    ? $response->code    : '[undef]'),
+      (defined $response->message ? $response->message : '[undef]')
+  ) .")");
 }
 
 =item $us->discard_entry ( $entry )
@@ -848,7 +841,7 @@ valuable main memory.
 # additional fixes by Kirill http://www.en-directo.net/mail/kirill.html
 sub discard_entry {
     my ($self, $entry) = @_;
-  LWP::Debug::trace("($entry)") if $entry;
+    LWP::Debug::trace("($entry)") if $entry;
 
     # Entries are added to ordpend_connections in $self->register:  
     #    push (@{$self->{'ordpend_connections'}}, $entry);
@@ -888,90 +881,86 @@ sub wait {
   # shortcuts to in- and out-filehandles
   my $fh_out = $self->{'select_out'};
   my $fh_in  = $self->{'select_in'};
-  my $fh_err;			# ignore errors for now
+  my $fh_err;       # ignore errors for now
   my @ready;
   
   my ($active, $pending);
- ATTEMPT:
+  ATTEMPT:
   while ( $active = scalar keys %{ $self->{'current_connections'} }  or
-	  $pending = scalar ($self->{'handle_in_order'}? 
-			     @{ $self->{'ordpend_connections'} } :
-			     keys %{ $self->{'pending_connections'} } ) ) {
+          $pending = scalar ($self->{'handle_in_order'}       ? 
+                          @{ $self->{'ordpend_connections'} } :
+                     keys %{ $self->{'pending_connections'} } ) ) {
     # check select
     if ( (scalar $fh_in->handles) or (scalar $fh_out->handles) ) {
       LWP::Debug::debug("Selecting Sockets, timeout is $timeout seconds");
-      unless ( @ready = IO::Select->select ($fh_in, $fh_out, 
-					    undef, $timeout) ) {
-	# 
-	# empty array, means that select timed out
-	LWP::Debug::trace('select timeout');
-	my ($socket);
-	# set all active requests to "timed out" 
-	foreach $socket ($fh_in->handles ,$fh_out->handles) {
-	  my $entry = $self->{'entries_by_sockets'}->{$socket};
-	  delete $self->{'entries_by_sockets'}->{$socket};
-	  unless ($entry->response->code) {
-	    # moved the creation of the timeout response into the loop so that
-	    # each entry gets its own response object (otherwise they'll all 
-	    # share the same request entry in there). thanks to John Salmon 
-	    # <john@thesalmons.org> for pointing this out.
-	    my $response = HTTP::Response->new(&HTTP::Status::RC_REQUEST_TIMEOUT,
-					     'User-agent timeout (select)');
-	    # don't overwrite an already existing response
-	    $entry->response ($response);
-	    $response->request ($entry->request);
-	    # only count as failure if we have no response yet
-	    $self->on_failure ($entry->request, $response, $entry);
-	  } else {
-	    my $res = $entry->response;
-	    $res->message ($res->message . " (timeout)");
-	    $entry->response ($res);
-	    # thanks to Jonathan Feinberg <jdf@pobox.com> who finally
-	    # reminded me that partial replies should trigger some sort 
-	    # of on_xxx callback as well. Let's try on_failure for now,
-	    # unless people think that on_return is the right thing to
-	    # call here:
-	    $self->on_failure ($entry->request, $res, $entry);
-	  }
-	  $self->_remove_current_connection ( $entry );
-	} 
-	# and delete from read- and write-queues
-	foreach $socket ($fh_out->handles) { $fh_out->remove($socket); }
-	foreach $socket ($fh_in->handles)  { $fh_in->remove($socket);  }
-	# continue processing -- pending requests might still work!
-      } else {
-	# something is ready for reading or writing
-	my ($ready_read, $ready_write, $error) = @ready;
+      unless (@ready = IO::Select->select ($fh_in, $fh_out, undef, $timeout)) {
+# 
+# empty array, means that select timed out
+        LWP::Debug::trace('select timeout');
+        my ($socket);
+# set all active requests to "timed out" 
+        foreach $socket ($fh_in->handles ,$fh_out->handles) {
+          my $entry = $self->{'entries_by_sockets'}->{$socket};
+          delete $self->{'entries_by_sockets'}->{$socket};
+          unless ($entry->response->code) {
+            # moved the creation of the timeout response into the loop so that
+            # each entry gets its own response object (otherwise they'll all 
+            # share the same request entry in there). thanks to John Salmon 
+            # <john@thesalmons.org> for pointing this out.
+            my $response = HTTP::Response->new(&HTTP::Status::RC_REQUEST_TIMEOUT,
+                             'User-agent timeout (select)');
+            # don't overwrite an already existing response
+            $entry->response ($response);
+            $response->request ($entry->request);
+            # only count as failure if we have no response yet
+            $self->on_failure ($entry->request, $response, $entry);
+          } else {
+            my $res = $entry->response;
+            $res->message ($res->message . " (timeout)");
+            $entry->response ($res);
+            # thanks to Jonathan Feinberg <jdf@pobox.com> who finally
+            # reminded me that partial replies should trigger some sort 
+            # of on_xxx callback as well. Let's try on_failure for now,
+            # unless people think that on_return is the right thing to
+            # call here:
+            $self->on_failure ($entry->request, $res, $entry);
+          }
+          $self->_remove_current_connection ( $entry );
+        } 
+# and delete from read- and write-queues
+        foreach $socket ($fh_out->handles) { $fh_out->remove($socket); }
+        foreach $socket ($fh_in->handles)  { $fh_in->remove($socket);  }
+# continue processing -- pending requests might still work!
+          } else {
+# something is ready for reading or writing
+        my ($ready_read, $ready_write, $error) = @ready;
         my ($socket);
 
-	#
-	# WRITE QUEUE
-	#
-	foreach $socket (@$ready_write) {
-	  my $so_err;
-	  if ($socket->can("getsockopt")) { # we also might have IO::File!
+#
+# WRITE QUEUE
+#
+    foreach $socket (@$ready_write) {
+        my $so_err;
+        if ($socket->can("getsockopt")) { # we also might have IO::File!
             ## check if there is any error (suggested by Mike Heller)
             $so_err = $socket->getsockopt( Socket::SOL_SOCKET(), 
-	                                   Socket::SO_ERROR() );
+                                           Socket::SO_ERROR() );
             LWP::Debug::debug( "SO_ERROR: $so_err" ) if $so_err;
-          }
-          # modularized this chunk so that it can be reused by 
-	  # POE::Component::Client::UserAgent
-	  $self->_perform_write ($socket, $timeout) unless $so_err;
+        }
+        # modularized this chunk so that it can be reused by 
+        # POE::Component::Client::UserAgent
+        $self->_perform_write ($socket, $timeout) unless $so_err;
+    }
 
-	}
-	
-	#
-	# READ QUEUE
-	#
-	foreach $socket (@$ready_read) {
-
-          # modularized this chunk so that it can be reused by 
-	  # POE::Component::Client::UserAgent
-          $self->_perform_read ($socket, $timeout);
-
-	}
-      }				# of unless (@ready...) {} else {}
+#
+# READ QUEUE
+#
+    foreach $socket (@$ready_read) {
+        # modularized this chunk so that it can be reused by 
+        # POE::Component::Client::UserAgent
+        $self->_perform_read ($socket, $timeout);
+    }
+      }     # of unless (@ready...) {} else {}
       
     } else {
       # when we are here, can we have active connections?!! 
@@ -979,19 +968,19 @@ sub wait {
       #you're in a hurry. Then again, you wouldn't be using perl then,
       #would you!?)
       LWP::Debug::trace("\n\tCurrent Server: ".
-			scalar (keys %{$self->{'current_connections'}}) .
-			" [ ". join (", ", 
-			  map { $_, $self->{'current_connections'}->{$_} }
-			  keys %{$self->{'current_connections'}}) .
-			" ]\n\tPending Server: ".
-			($self->{'handle_in_order'}? 
-			 scalar @{$self->{'ordpend_connections'}} :
-			 scalar (keys %{$self->{'pending_connections'}}) .
-			 " [ ". join (", ", 
-			  map { $_, 
-			       scalar @{$self->{'pending_connections'}->{$_}} }
-			       keys %{$self->{'pending_connections'}}) .
-			 " ]") );
+            scalar (keys %{$self->{'current_connections'}}) .
+            " [ ". join (", ", 
+              map { $_, $self->{'current_connections'}->{$_} }
+              keys %{$self->{'current_connections'}}) .
+            " ]\n\tPending Server: ".
+            ($self->{'handle_in_order'}? 
+             scalar @{$self->{'ordpend_connections'}} :
+             scalar (keys %{$self->{'pending_connections'}}) .
+             " [ ". join (", ", 
+              map { $_, 
+                   scalar @{$self->{'pending_connections'}->{$_}} }
+                   keys %{$self->{'pending_connections'}}) .
+             " ]") );
     } # end of if $sel->handles
     # try to make new connections
     $self->_make_connections;
@@ -1034,12 +1023,11 @@ sub _add_in_socket {
 
 sub _remove_all_sockets { 
   my ($self) = @_;
-  $self->{select_in} = IO::Select->new();
+  $self->{select_in}  = IO::Select->new();
   $self->{select_out} = IO::Select->new();
 }
 
-sub _perform_write
-{
+sub _perform_write {
   my ($self, $socket, $timeout) = @_;
   LWP::Debug::debug('Writing to Sockets');
   my $entry = $self->{'entries_by_sockets'}->{$socket};
@@ -1050,56 +1038,38 @@ sub _perform_write
   my ($listen_socket, $response);
   if ($self->{'use_eval'}) {
     eval {
-      ($listen_socket, $response) = 
-	$protocol->write_request ($request, 
-				  $socket, 
-				  $fullpath, 
-				  $arg,
-				  $timeout,
-				  $proxy);
+      ($listen_socket, $response) = $protocol->write_request ($request, $socket, $fullpath, 
+                                                                  $arg, $timeout, $proxy);
     };
     if ($@) {
-      # if our call fails, we might not have a $response object, so we
-      # have to create a new one here
+      # if our call fails, we might not have a $response object, so we have to create a new one here
       if ($@ =~ /^timeout/i) {
-	$response = LWP::UserAgent::_new_response($request, &HTTP::Status::RC_REQUEST_TIMEOUT,
-					'User-agent timeout (syswrite)');
+        $response = LWP::UserAgent::_new_response($request, &HTTP::Status::RC_REQUEST_TIMEOUT,
+                                                    'User-agent timeout (syswrite)');
       } else {
-	# remove file/line number
-	# $@ =~ s/\s+at\s+\S+\s+line\s+\d+.*//s;  
-	$response = LWP::UserAgent::_new_response($request, &HTTP::Status::RC_INTERNAL_SERVER_ERROR,
-					$@);
+        # $@ =~ s/\s+at\s+\S+\s+line\s+\d+.*//s; # remove file/line number
+        $response = LWP::UserAgent::_new_response($request, &HTTP::Status::RC_INTERNAL_SERVER_ERROR, $@);
       }
       $entry->response ($response);
-      $self->on_failure ($request, $response, $entry);	    
+      $self->on_failure ($request, $response, $entry);
     }
   } else {
     # user has to handle any dies, usually timeouts
-    ($listen_socket, $response) = 
-      $protocol->write_request ($request, 
-				$socket, 
-				$fullpath, 
-				$arg,
-				$timeout,
-				$proxy);
+    ($listen_socket, $response) = $protocol->write_request ($request, $socket, $fullpath, 
+                                                                  $arg, $timeout, $proxy);
   }
 
   if ($response and !$response->is_success) {
     $entry->response($response);
     $entry->response->request($request);
-    LWP::Debug::trace('Error while issuing request '.
-		      $request->url->as_string);
-  } elsif ($response) {
-           # successful response already?
-    LWP::Debug::trace('Fast response for request '.
-		      $request->url->as_string . 
-		      ' ['. length($response->content) . 
-		      ' bytes]');
+    LWP::Debug::trace('Error while issuing request '. $request->url->as_string);
+  } elsif ($response) {      # successful response already?
+    LWP::Debug::trace('Fast response for request '. $request->url->as_string . 
+                          ' ['. length($response->content) .  ' bytes]');
     $entry->response($response);
     $entry->response->request($request);
     my $content = $response->content;
-    $response->content(''); # clear content here, so that it
-                            # can be properly processed by ->receive
+    $response->content(''); # clear content here, so that it can be properly processed by ->receive
     unless ($request->method eq 'DELETE') { # JB
         $protocol->receive_once($arg, $response, $content, $entry);
     }
@@ -1122,49 +1092,43 @@ sub _perform_write
   return;
 }       
 
-sub _perform_read
-{
+sub _perform_read {
   my ($self, $socket, $timeout) = @_;
 
   LWP::Debug::debug('Reading from Sockets');
   my $entry = $self->{'entries_by_sockets'}->{$socket};
   
   my ( $request, $response, $protocol, $fullpath, $arg, $size) =
-    $entry->get( qw(request response protocol 
-		    fullpath arg size) );
+    $entry->get( qw(request response protocol fullpath arg size) );
   
   my $retval;
   if ($self->{'use_eval'}) {
     eval {
-      $retval =  $protocol->read_chunk ($response, $socket, $request,
-					$arg, $size, $timeout,
-					$entry);
+      $retval = $protocol->read_chunk($response, $socket, $request,
+                                      $arg, $size, $timeout, $entry);
     };
     if ($@) {
       if ($@ =~ /^timeout/i) {
-	$response->code (&HTTP::Status::RC_REQUEST_TIMEOUT);
-	$response->message ('User-agent timeout (sysread)');
+        $response->code (&HTTP::Status::RC_REQUEST_TIMEOUT);
+        $response->message ('User-agent timeout (sysread)');
       } else {
-	# remove file/line number
-	# $@ =~ s/\s+at\s+\S+\s+line\s+\d+.*//s;  
-	$response->code (&HTTP::Status::RC_INTERNAL_SERVER_ERROR);
-	$response->message ($@);
+        # $@ =~ s/\s+at\s+\S+\s+line\s+\d+.*//s;  # remove file/line number
+        $response->code (&HTTP::Status::RC_INTERNAL_SERVER_ERROR);
+        $response->message ($@);
       }
-      $self->on_failure ($request, $response, $entry);	    
+      $self->on_failure ($request, $response, $entry);
     }
   } else {
     # user has to handle any dies, usually timeouts
-    $retval =  $protocol->read_chunk ($response, $socket, $request,
-				      $arg, $size, $timeout,
-				      $entry);
+    $retval =  $protocol->read_chunk($response, $socket, $request,
+                                     $arg, $size, $timeout, $entry);
   }
 
   # examine return value. $retval is either a positive
   # number, indicating the number of bytes read, or
   # '0' (for EOF), or a callback-function code (<0)
   
-  LWP::Debug::debug ("'$retval' = read_chunk from $entry (".
-		     $request->url.")");
+  LWP::Debug::debug ("'$retval' = read_chunk from $entry (".$request->url.")");
   
   # call on_return method if it's the end of this request
   unless ($retval > 0) {
@@ -1172,8 +1136,7 @@ sub _perform_read
     $retval = $command  if defined $command and $command < 0;
     
     LWP::Debug::debug ("received '". (defined $command ? $command : '[undef]').
-		       "' from on_return");
-    
+                   "' from on_return");
   }
 
   if ($retval > 0) { 
@@ -1183,9 +1146,8 @@ sub _perform_read
     # read_chunk returns 0 if we reached EOF
     $self->_remove_in_socket($socket);
     # use protocol dependent method to close connection
-    $entry->protocol->close_connection($entry->response, $socket, 
-				$entry->request, $entry->cmd_socket);	    
-    #  $socket->shutdown(2); # see "man perlfunc" & "man 2 shutdown"
+    $entry->protocol->close_connection($entry->response, $socket, $entry->request, $entry->cmd_socket);
+    # $socket->shutdown(2); # see "man perlfunc" & "man 2 shutdown"
     close ($socket);
     $socket = undef; # close socket
 
@@ -1202,9 +1164,7 @@ sub _perform_read
       $self->{'pending_connections'} = {};
       $self->{'ordpend_connections'} = [];
     } else {
-      if ($entry->redirect_ok) {
-	$self->handle_response ($entry);
-      } 
+      $entry->redirect_ok and $self->handle_response($entry);
       # pop off next pending_connection (if bandwith available)
       $self->_make_connections;
     }
@@ -1230,9 +1190,8 @@ using C<$ua->redirect()>.
 # parameter!)  Also, instead of recursive calls this uses
 # $ua->register now.
 
-sub handle_response
-{
-    my($self, $entry) = @_;
+sub handle_response {
+    my ($self, $entry) = @_;
     LWP::Debug::trace("-> ($entry [".$entry->request->url->as_string.'] )');
 
     # check if we should process this response
@@ -1243,106 +1202,97 @@ sub handle_response
     my $code = $response->code;
 
     LWP::Debug::debug('Handling result: '. 
-                      (HTTP::Status::status_message($code) ||
-		       "Unknown code $code"));
+                      (HTTP::Status::status_message($code) || "Unknown code $code"));
 
     if ($code == &HTTP::Status::RC_MOVED_PERMANENTLY or
-	$code == &HTTP::Status::RC_MOVED_TEMPORARILY) {
+        $code == &HTTP::Status::RC_MOVED_TEMPORARILY) {
 
-	# Make a copy of the request and initialize it with the new URI
-	my $referral = $request->clone;
+        # Make a copy of the request and initialize it with the new URI
+        my $referral = $request->clone;
 
-	# And then we update the URL based on the Location:-header.
-	my($referral_uri) = $response->header('Location');
-	{
-	    # Some servers erroneously return a relative URL for redirects,
-	    # so make it absolute if it not already is.
-	    local $URI::ABS_ALLOW_RELATIVE_SCHEME = 1;
-	    my $base = $response->base;
-	    $referral_uri = $HTTP::URI_CLASS->new($referral_uri, $base)
-		            ->abs($base);
-	}
+        # And then we update the URL based on the Location:-header.
+        my($referral_uri) = $response->header('Location');
+        {
+            # Some servers erroneously return a relative URL for redirects,
+            # so make it absolute if it not already is.
+            local $URI::ABS_ALLOW_RELATIVE_SCHEME = 1;
+            my $base = $response->base;
+            $referral_uri = $HTTP::URI_CLASS->new($referral_uri, $base)->abs($base);
+        }
 
-	$referral->url($referral_uri);
-	$referral->remove_header('Host');
+        $referral->url($referral_uri);
+        $referral->remove_header('Host');
 
-	# don't do anything unless we're allowed to redirect
-	return $response unless $self->redirect_ok($referral, $response);  # fix by th. boutell
+        # don't do anything unless we're allowed to redirect
+        return $response unless $self->redirect_ok($referral, $response);  # fix by th. boutell
 
-	# Check for loop in the redirects
-	my $count = 0;
-	my $r = $response;
-	while ($r) {
-	    if (++$count > 13 ||
-		$r->request->url->as_string eq $referral_uri->as_string) {
-		$response->header("Client-Warning" =>
-				  "Redirect loop detected");
-		return $response;
-	    }
-	    $r = $r->previous;
-	}
-	# From: "Andrey A. Chernov" <ache@nagual.pp.ru>
-	$self->cookie_jar->extract_cookies($response)
-	    if $self->cookie_jar;
-	# register follow up request
-      LWP::Debug::trace("<- (registering follow up request: $referral, $entry)");
-	return $self->register ($referral, $entry);
+        # Check for loop in the redirects
+        my $count = 0;
+        my $r = $response;
+        while ($r) {
+            if (++$count > 13 || $r->request->url->as_string eq $referral_uri->as_string) {
+                $response->header("Client-Warning" => "Redirect loop detected");
+                return $response;
+            }
+            $r = $r->previous;
+        }
+        # From: "Andrey A. Chernov" <ache@nagual.pp.ru>
+        $self->cookie_jar->extract_cookies($response) if $self->cookie_jar;
+        # register follow up request
+        LWP::Debug::trace("<- (registering follow up request: $referral, $entry)");
+        return $self->register ($referral, $entry);
 
-    } elsif ($code == &HTTP::Status::RC_UNAUTHORIZED ||
-	     $code == &HTTP::Status::RC_PROXY_AUTHENTICATION_REQUIRED
-	    )
-    {
-	my $proxy = ($code == &HTTP::Status::RC_PROXY_AUTHENTICATION_REQUIRED);
-	my $ch_header = $proxy ?  "Proxy-Authenticate" : "WWW-Authenticate";
-	my @challenge = $response->header($ch_header);
-	unless (@challenge) {
-	    $response->header("Client-Warning" => 
-			      "Missing Authenticate header");
-#	  LWP::Debug::trace("<- ($response [".$response->header.'] )');
-	    return $response;
-	}
-	
-	require HTTP::Headers::Util;
-	CHALLENGE: for my $challenge (@challenge) {
-	  $challenge =~ tr/,/;/;  # "," is used to separate auth-params!!
-	  ($challenge) = HTTP::Headers::Util::split_header_words($challenge);
-	  my $scheme = lc(shift(@$challenge));
-	  shift(@$challenge); # no value
-	  $challenge = { @$challenge };  # make rest into a hash
-	  for (keys %$challenge) {       # make sure all keys are lower case
-	      $challenge->{lc $_} = delete $challenge->{$_};
-	  }
+        } elsif ($code == &HTTP::Status::RC_UNAUTHORIZED ||
+                 $code == &HTTP::Status::RC_PROXY_AUTHENTICATION_REQUIRED) {
+            my $proxy = ($code == &HTTP::Status::RC_PROXY_AUTHENTICATION_REQUIRED);
+            my $ch_header = $proxy ?  "Proxy-Authenticate" : "WWW-Authenticate";
+            my @challenge = $response->header($ch_header);
+            unless (@challenge) {
+                $response->header("Client-Warning" => "Missing Authenticate header");
+                #LWP::Debug::trace("<- ($response [".$response->header.'] )');
+                return $response;
+            }
+        
+        require HTTP::Headers::Util;
+        CHALLENGE: for my $challenge (@challenge) {
+          $challenge =~ tr/,/;/;  # "," is used to separate auth-params!!
+          ($challenge) = HTTP::Headers::Util::split_header_words($challenge);
+          my $scheme = lc(shift(@$challenge));
+          shift(@$challenge); # no value
+          $challenge = { @$challenge };  # make rest into a hash
+          for (keys %$challenge) {       # make sure all keys are lower case
+              $challenge->{lc $_} = delete $challenge->{$_};
+          }
 
-	  unless ($scheme =~ /^([a-z]+(?:-[a-z]+)*)$/) {
-	    $response->header("Client-Warning" => 
-			      "Bad authentication scheme '$scheme'");
-#	    LWP::Debug::trace("<- ($response [".$response->header.'] )');
-	    return $response;
-	  }
-	  $scheme = $1;  # untainted now
-	  my $class = "LWP::Authen::\u$scheme";
-	  $class =~ s/-/_/g;
-	
-	  no strict 'refs';
-	  unless (defined %{"$class\::"}) {
-	    # try to load it
-	    eval "require $class";
-	    if ($@) {
-		if ($@ =~ /^Can\'t locate/) {
-		    $response->header("Client-Warning" =>
-				      "Unsupport authentication scheme '$scheme'");
-		} else {
-		    $response->header("Client-Warning" => $@);
-		}
-		next CHALLENGE;
-	    }
-	  }
+          unless ($scheme =~ /^([a-z]+(?:-[a-z]+)*)$/) {
+            $response->header("Client-Warning" => 
+                      "Bad authentication scheme '$scheme'");
+            #LWP::Debug::trace("<- ($response [".$response->header.'] )');
+            return $response;
+          }
+          $scheme = $1;  # untainted now
+          my $class = "LWP::Authen::\u$scheme";
+          $class =~ s/-/_/g;
+        
+          no strict 'refs';
+          unless (defined %{"$class\::"}) {
+            # try to load it
+            eval "require $class";
+            if ($@) {
+              if ($@ =~ /^Can\'t locate/) {
+                $response->header("Client-Warning" => "Unsupport authentication scheme '$scheme'");
+              } else {
+                $response->header("Client-Warning" => $@);
+              }
+              next CHALLENGE;
+            }
+          }
           LWP::Debug::trace("<- authenticates");
-	  return $class->authenticate($self, $proxy, $challenge, $response,
-				    $request, $entry->arg, $entry->size);
-	}
-#        LWP::Debug::trace("<- ($response [".$response->header.'] )');
-	return $response;
+          return $class->authenticate($self, $proxy, $challenge, $response,
+                        $request, $entry->arg, $entry->size);
+        }
+#       LWP::Debug::trace("<- ($response [".$response->header.'] )');
+        return $response;
     }
     LWP::Debug::trace("<- standard exit ($response)");
     return $response;
@@ -1352,9 +1302,7 @@ sub handle_response
 sub _single_request {
   my $self = shift;
   my $res;
-  if ( $res = $self->register (@_) ) { 
-    return $res->error_as_HTML;
-  }
+  $res = $self->register(@_) and return $res->error_as_HTML;
   my $entries = $self->wait(5);
   foreach (keys %$entries) {
       my $response = $entries->{$_}->response;
@@ -1452,33 +1400,27 @@ sub init_request {
 
     # Check that we have a METHOD and a URL first
     return LWP::UserAgent::_new_response($request, &HTTP::Status::RC_BAD_REQUEST, "Method missing")
-	unless $method;
+        unless $method;
     return LWP::UserAgent::_new_response($request, &HTTP::Status::RC_BAD_REQUEST, "URL missing")
-	unless $url;
+        unless $url;
     return LWP::UserAgent::_new_response($request, &HTTP::Status::RC_BAD_REQUEST, "URL must be absolute")
-	unless $url->scheme;
-	
+        unless $url->scheme;
+
 
     LWP::Debug::trace("$method $url");
 
     # Locate protocol to use
-    my $scheme = '';
-
-    my $proxy = $self->_need_proxy($url);
-    if (defined $proxy) {
-	$scheme = $proxy->scheme;
-    } else {
-	$scheme = $url->scheme;
-    }
+    my $proxy  = $self->_need_proxy($url);
+    my $scheme = (defined $proxy) ? $proxy->scheme : $url->scheme;
     my $protocol;
     eval {
-	# add Parallel extension here
-	$protocol = LWP::Parallel::Protocol::create($scheme);
+        # add Parallel extension here
+        $protocol = LWP::Parallel::Protocol::create($scheme);
     };
     if ($@) {
         # remove file/line number
-	# $@ =~ s/\s+at\s+\S+\s+line\s+\d+.*//s;  
-	return LWP::UserAgent::_new_response($request, &HTTP::Status::RC_NOT_IMPLEMENTED, $@)
+        # $@ =~ s/\s+at\s+\S+\s+line\s+\d+.*//s;  
+        return LWP::UserAgent::_new_response($request, &HTTP::Status::RC_NOT_IMPLEMENTED, $@)
     }
 
     # Extract fields that will be used below
@@ -1489,8 +1431,8 @@ sub init_request {
 
     # Set User-Agent and From headers if they are defined
     $request->init_header('User-Agent' => $agent) if $agent;
-    $request->init_header('From' => $from) if $from;
-    $request->init_header('Range' => "bytes=0-$max_size") if $max_size;
+    $request->init_header('From'       => $from)  if $from;
+    $request->init_header('Range'      => "bytes=0-$max_size") if $max_size;
     $cookie_jar->add_cookie_header($request) if $cookie_jar;
 
     # Transfer some attributes to the protocol object : defensive coding because LWP::Protocol dropped parse_head (and others?) in recent versions
@@ -1498,10 +1440,10 @@ sub init_request {
     $protocol->can('max_size'  ) ? $protocol->max_size($max_size)     : $protocol->_elem(  'max_size', $max_size  );
 
     LWP::Debug::trace ("<- (undef".
-		       ", ". (defined $proxy ? $proxy : '[undef]').
-		       ", ". (defined $protocol ? $protocol : '[undef]').
-		       ", ". (defined $timeout ? $timeout : '[undef]').
-		       ", ". (defined $use_eval ? $use_eval : '[undef]').")");
+           ", ". (defined $proxy    ? $proxy    : '[undef]').
+           ", ". (defined $protocol ? $protocol : '[undef]').
+           ", ". (defined $timeout  ? $timeout  : '[undef]').
+           ", ". (defined $use_eval ? $use_eval : '[undef]').")");
 
     (undef, $proxy, $protocol, $timeout, $use_eval, $nonblock);
 }
