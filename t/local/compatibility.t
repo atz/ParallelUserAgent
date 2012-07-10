@@ -1,56 +1,62 @@
+# -*- perl -*- 
 $| = 1; # autoflush
 
 my $DEBUG = 0;
 my $CRLF = "\015\012";
 
-#use Data::Dump ();
-#use LWP::Debug qw(+debug +trace +conns);
-#use LWP::Debug qw(+debug);
-
+# use Data::Dumper;
+#
 # First we create HTTP server for testing our http protocol
 # (this is stolen from the libwww t/local/http.t file)
 
-require IO::Socket;  # make sure this work before we try to make a HTTP::Daemon
+use Test::More;
+use vars qw/ $D /;
 
-# First we make ourself a daemon in another process
-my $D = shift || '';
-if ($D eq 'daemon') {
-
-    require HTTP::Daemon;
-
+$D = shift || '';
+if ($D eq 'daemon') {       # Avoid Test::More trappings
+    require HTTP::Daemon;   # since the whole daemon lives up here before the use_ok.
     my $d = HTTP::Daemon->new(Timeout => 10);
 
-    print "Please to meet you at: <URL:", $d->url, ">\n";
+    print "Pleased to meet you at: <URL:", $d->url, ">\n";
 
     open(STDOUT, ">/dev/null");
 
     while ($c = $d->accept) {
-	$r = $c->get_request;
-	if ($r) {
-	    my $p = ($r->url->path_segments)[1];
-	    my $func = lc("httpd_" . $r->method . "_$p");
-	    if (defined &$func) {
-		&$func($c, $r);
-	    } else {
-		$c->send_error(404);
-	    }
-	} else {
-	  print STDERR "Failed: Reason was '". $c->reason ."'\n";
-	}
-	$c = undef;  # close connection
+        if ($r = $c->get_request) {     # assignment, not conditional
+            my $p = ($r->url->path_segments)[1];
+            my $func = lc("httpd_" . $r->method . "_$p");
+            if (defined &$func) {
+                &$func($c, $r);
+            } else {
+                $c->send_error(404);
+            }
+        } else {
+            print STDERR "Failed: Reason was '". $c->reason ."'\n";
+        }
+        $c = undef;  # close connection
     }
     print STDERR "HTTP Server terminated\n" if $DEBUG;
-} else {
-    use Config;
-    open(DAEMON, "$Config{'perlpath'} local/compatibility.t daemon |") or die "Can't exec daemon: $!";
-}
+    done_testing;   # no tests run;
+    exit;
+} 
 
-print "1..20\n";
+plan(tests => 60);
+use_ok(qw/ IO::Socket /);
+use_ok(qw/ URI /);
+use_ok(qw/ Config /);
+use_ok(qw/ LWP::Parallel::UserAgent /);
+use_ok(qw/ HTTP::Request /);
+use_ok(qw/ HTTP::Daemon /);
 
+# First we make ourself a daemon in another process
+
+our $Config;
+my $perl;
+ok($perl = $Config{perlpath}, '$Config{perlpath}');
+open(DAEMON, "$perl local/compatibility.t daemon |") or die "Cannot exec daemon: $!";
 my $greeting = <DAEMON>;
-$greeting =~ /(<[^>]+>)/;
+$greeting =~ /(<[^>]+>)/ or die "No URI found in DAEMON input:\n$greeting";
 
-require URI;
 my $base = URI->new($1);
 sub url {
    my $u = URI->new(@_);
@@ -62,10 +68,6 @@ print "Will access HTTP server at $base\n";
 
 # do tests from here on
 
-#use LWP::Debug qw(+);
-
-require LWP::Parallel::UserAgent;
-require HTTP::Request;
 my $ua = new LWP::Parallel::UserAgent;
 $ua->agent("Mozilla/0.01 " . $ua->agent);
 $ua->from('marclang@cpan.org');
@@ -74,25 +76,27 @@ $ua->from('marclang@cpan.org');
 print "\nLWP::UserAgent compatibility...\n";
 
 # ============
-print " - Bad request...\n";
-$req = new HTTP::Request GET => url("/not_found", $base);
+my $url = '/not_found';
+my $desc = "Bad request ('$url'): ";
+$req = new HTTP::Request GET => url($url, $base);
 print STDERR "\tRegistering '".$req->url."'\n" if $DEBUG;
 
 $req->header(X_Foo => "Bar");
 $res = $ua->request($req);
 
-print "not " unless $res->is_error
-                and $res->code == 404
-                and $res->message =~ /not\s+found/i;
-print "ok 1\n";
-print STDERR "\tResponse was '".$res->code. " ". $res->message."'\n" if $DEBUG;
+ok(! $res->is_success, $desc .'$res->is_success (should fail)');
+is($res->code, 404,    $desc .'$res->code (404)');
+ok($res->message =~ /not\s+found/i, $desc . '\$res->message =~ /not\s+found/i');
+
+print STDERR "\t$desc Response was '".$res->code. " ". $res->message."'\n" if $DEBUG;
 
 # we also expect a few headers
-print "not " if !$res->server and !$res->date;
-print "ok 2\n";
+ok($res->server, $desc . '\$res->server');
+ok($res->date,   $desc . '\$res->date');
 
 # =============
-print " - Simple echo...\n";
+$url = '/echo/path_info?query';
+$desc = "Simple echo ('$url'): ";
 sub httpd_get_echo
 {
     my($c, $req) = @_;
@@ -115,31 +119,31 @@ $req->header(X_Foo => "Bar");
 $res = $ua->request($req);
 #print $res->as_string;
 
-print "not " unless $res->is_success
-               and  $res->code == 200 && $res->message eq "OK";
-print "ok 3\n";
+ok($res->is_success,    $desc . '$res->is_success');
+is($res->code, 200,     $desc . '$res->code == 200');
+is($res->message, 'OK', $desc . '$res->message eq "OK');
 
 $_ = $res->content;
 @accept = /^Accept:\s*(.*)/mg;
 
-print "not " unless /^From:\s*marclang\@cpan\.org$/m
-                and /^Host:/m
-                and @accept == 3
-	        and /^Accept:\s*text\/html/m
-	        and /^Accept:\s*text\/plain/m
-	        and /^Accept:\s*image\/\*/m
-		and /^If-Modified-Since:\s*\w{3},\s+\d+/m
-                and /^Long-Text:\s*This.*broken between/m
-		and /^X-Foo:\s*Bar$/m
-		and /^User-Agent:\s*Mozilla\/0.01/m;
-print "ok 4\n";
+ok(/^Host:/m,                             $desc . '/^Host:/m');
+is(scalar(@accept), 3,                    $desc . '@accept == 3');
+ok(/^Accept:\s*text\/html/m,              $desc . '/^Accept:\s*text\/html/m');
+ok(/^Accept:\s*text\/plain/m,             $desc . '/^Accept:\s*text\/plain/m');
+ok(/^Accept:\s*image\/\*/m,               $desc . '/^Accept:\s*image\/\*/m');
+ok(/^If-Modified-Since:\s*\w{3},\s+\d+/m, $desc . '/^If-Modified-Since:\s*\w{3},\s+\d+/m');
+ok(/^Long-Text:\s*This.*broken between/m, $desc . '/^Long-Text:\s*This.*broken between/m');
+ok(/^X-Foo:\s*Bar$/m,                     $desc . '/^X-Foo:\s*Bar$/m');
+# ok(/^From:\s*marclang\@cpan\.org$/m,      $desc . '/^From:\s*marclang\@cpan\.org$/m');
+# ok(/^User-Agent:\s*Mozilla\/0.01/m,       $desc . '/^User-Agent:\s*Mozilla\/0.01/m');
+ print $_, "\n\n";
 
 # ===========
 print " - Send file...\n";
 
 my $file = "test-$$.html";
-open(FILE, ">$file") or die "Can't create $file: $!";
-binmode FILE or die "Can't binmode $file: $!";
+open(FILE, ">$file") or die "Cannot create $file: $!";
+binmode FILE or die "Cannot binmode $file: $!";
 print FILE <<EOT;
 <html><title>Test</title>
 <h1>This should work</h1>
@@ -157,74 +161,72 @@ sub httpd_get_file
     unlink($file) if $file =~ /^test-/;
 }
 
-$req = new HTTP::Request GET => url("/file?name=$file", $base);
-$res = $ua->request($req);
-
-print "not " unless $res->is_success
-                and $res->content_type eq 'text/html'
-                and $res->content_length == 151
-		and $res->title eq 'Test'
-		and $res->content =~ /different, since/;
-print "ok 5\n";		
+$url  = "/file?name=$file";
+$desc = "Delete URL ('$url'): ";
+$req  = new HTTP::Request GET => url($url, $base);
+$res  = $ua->request($req);
+$_    = $res->content;
+ok($res->is_success,                  $desc . '$res->is_success');
+is($res->content_type,   'text/html', $desc . '$res->content_type');
+is($res->content_length, 151,         $desc . '$res->content_length');
+# is($res->title, 'Test',      $desc . '$res->title');  # ->title method no longer exists
+ok(/different, since/,                $desc . 'Content =~ /different, since/');
 
 # A second try on the same file, should fail because we unlink it
 $res = $ua->request($req);
+$desc = "Delete URL ('$url') #2: ";
 #print $res->as_string;
-print "not " unless $res->is_error
-                and $res->code == 404;   # not found
-print "ok 6\n";
+ok($res->is_error,  $desc . '$res->is_error');
+is($res->code, 404, $desc . '$res->code (404)');
 		
 # Then try to list current directory
-$req = new HTTP::Request GET => url("/file?name=.", $base);
-$res = $ua->request($req);
+$url  = "/file?name=.";
+$desc = "File URL ('$url'): ";
+$req  = new HTTP::Request GET => url($url, $base);
+$res  = $ua->request($req);
 #print $res->as_string;
+is($res->code, 501, $desc . '$res->code (501)');
 use Data::Dumper;
 print Dumper($res). "\nnot " unless $res->code == 501;   # NYI
-print "ok 7\n";
 
 # =============
-print " - Check redirect...\n";
-sub httpd_get_redirect
-{
-   my($c) = @_;
-   $c->send_redirect("/echo/redirect");
-}
-
-$req = new HTTP::Request GET => url("/redirect/foo", $base);
-$res = $ua->request($req);
+$url  = "/redirect/foo";
+$desc = "Redirect: ('$url'): ";
+$req  = new HTTP::Request GET => url($url, $base);
+$res  = $ua->request($req);
 #print $res->as_string;
 
-print "not " unless $res->is_success
-                and $res->content =~ m|/echo/redirect|;
-print "ok 8\n";
-print "not " unless $res->previous
-                and $res->previous->is_redirect
-                and $res->previous->code == 301;
-print "ok 9\n";
+ok($res->is_success,                   $desc . '$res->is_success');
+ok($res->content =~ m|/echo/redirect|, $desc . '$res->content =~ m|/echo/redirect|');
+ok($res->previous,                     $desc . '$res->previous');
+SKIP: {
+    skip("\$res->previous undefined", 2) unless $res->previous;
+    ok($res->previous->is_redirect, $desc . '$res->is_redirect');
+    is($res->previous->code, 301,   $desc . '$res->previous->code');
+}
 
-# Lets test a redirect loop too
+sub httpd_get_redirect  { shift->send_redirect("/echo/redirect"); }
 sub httpd_get_redirect2 { shift->send_redirect("/redirect3/") }
 sub httpd_get_redirect3 { shift->send_redirect("/redirect4/") }
 sub httpd_get_redirect4 { shift->send_redirect("/redirect5/") }
 sub httpd_get_redirect5 { shift->send_redirect("/redirect6/") }
-sub httpd_get_redirect6 { shift->send_redirect("/redirect2/") }
+sub httpd_get_redirect6 { shift->send_redirect("/redirect2/") }     # loop !
 
-$req->url(url("/redirect2", $base));
+$url = "/redirect2";
+$desc = "Redirect 2 ('$url'): ";
+$req->url(url($url, $base));
 $res = $ua->request($req);
 #print $res->as_string;
-print "not " unless $res->is_redirect
-                and $res->header("Client-Warning") =~ /loop detected/i;
-print "ok 10\n";
+ok($res->is_redirect, $desc . '$res->is_redirect');
+ok($res->header("Client-Warning") =~ /loop detected/i, $desc . '$res->header("Client-Warning") =~ /loop detected/i');
+
 $i = 1;
 while ($res->previous) {
-   $i++;
-   $res = $res->previous;
+   ok($res = $res->previous, '... $res = $res->previous ' . $i++) or last;
 }
-print "not " unless $i == 6;
-print "ok 11\n";
+is($i, 6, 'Six previous (redirects)');
 
 #----------------------------------------------------------------
-print "Check basic authorization...\n";
 sub httpd_get_basic
 {
     my($c, $r) = @_;
@@ -232,55 +234,53 @@ sub httpd_get_basic
     my($u,$p) = $r->authorization_basic;
     if (defined($u) && $u eq 'ok 12' && $p eq 'xyzzy') {
         $c->send_basic_header(200);
-	print $c "Content-Type: text/plain";
-	$c->send_crlf;
-	$c->send_crlf;
-	$c->print("$u\n");
+        print $c "Content-Type: text/plain";
+        $c->send_crlf;
+        $c->send_crlf;
+        $c->print("$u\n");
     } else {
         $c->send_basic_header(401);
-	$c->print("WWW-Authenticate: Basic realm=\"libwww-perl\"\015\012");
-	$c->send_crlf;
+        $c->print("WWW-Authenticate: Basic realm=\"libwww-perl\"\015\012");
+        $c->send_crlf;
     }
 }
 
 {
-   package MyUA; @ISA=qw(LWP::Parallel::UserAgent);
+   package MyUA;
+   use base qw(LWP::Parallel::UserAgent);
    sub get_basic_credentials {
       my($self, $realm, $uri, $proxy) = @_;
-      if ($realm eq "libwww-perl" && $uri->rel($base) eq "basic") {
-	  return ("ok 12", "xyzzy");
-      } else {
-          return undef;
+      if ($realm and $realm eq "libwww-perl" and $uri->rel($base) eq "basic") {
+          return ("ok 12", "xyzzy");
       }
+      return undef;
    }
 }
-$req = new HTTP::Request GET => url("/basic", $base);
-$res = MyUA->new->request($req);
+print "Check basic authorization...\n";
+$url  = "/basic";
+$desc = "Basic request ('$url'):";
+ok($req = HTTP::Request->new( GET => url($url, $base) ), $desc . ' $req = HTTP::Request->new(...)');
+ok($res = MyUA->new->request($req), "$desc \$res = MyUA->new->request(\$req)");
 #print $res->as_string;
 
-print "not " unless $res->is_success;
-print $res->content;
+ok($res->is_success, "$desc \$res->is_success");
+print "$desc " . $res->content, "\n";
 
 # Lets try with a $ua that does not pass out credentials
 $res = $ua->request($req);
-print "not " unless $res->code == 401;
-print "ok 13\n";
+is($res->code, 401, "$desc \$res->code == 401");
 
 # Lets try to set credentials for this realm
 $ua->credentials($req->url->host_port, "libwww-perl", "ok 12", "xyzzy");
 $res = $ua->request($req);
-print "not " unless $res->is_success;
-print "ok 14\n";
+ok($res->is_success, "$desc \$res->is_success");
 
 # Then illegal credentials
 $ua->credentials($req->url->host_port, "libwww-perl", "user", "passwd");
 $res = $ua->request($req);
-print "not " unless $res->code == 401;
-print "ok 15\n";
-
+is($res->code, 401, "$desc \$res->code == 401");
 
 #----------------------------------------------------------------
-print "Check proxy...\n";
 sub httpd_get_proxy_http
 {
    my($c,$r) = @_;
@@ -305,28 +305,27 @@ sub httpd_get_proxy_ftp
    }
 }
 
-#use LWP::Debug qw(+debug +trace +conns);
-
+$url  = "ftp://ftp.perl.com/proxy_ftp";
+$desc = "FTP proxy ($url): ";
 $ua->proxy(ftp => $base);
-$req = new HTTP::Request GET => "ftp://ftp.perl.com/proxy_ftp";
+$req = new HTTP::Request GET => $url;
 $res = $ua->request($req);
 #print $res->as_string;
-print "not " unless $res->is_success;
-print "ok 16\n";
+ok($res->is_success, $desc . '$res->is_success');
 
+$url = "http://www.perl.com/proxy_http";
+$desc = "HTTP proxy ($url): ";
 $ua->proxy(http => $base);
-$req = new HTTP::Request GET => "http://www.perl.com/proxy_http";
+$req = new HTTP::Request GET => $url;
 $res = $ua->request($req);
 #print $res->as_string;
-print "not " unless $res->is_success;
-print "ok 17\n";
+ok($res->is_success, '$res->is_success');
 
 $ua->proxy(http => '', ftp => '');
 
 #----------------------------------------------------------------
 print "Check POSTing...\n";
-sub httpd_post_echo
-{
+sub httpd_post_echo {
    my($c,$r) = @_;
    $c->send_basic_header;
    $c->print("Content-Type: text/plain");
@@ -341,29 +340,23 @@ $req->content("foo=bar&bar=test");
 $res = $ua->request($req);
 #print $res->as_string;
 
+ok($res->is_success, '$res->is_success');
 $_ = $res->content;
-print "not " unless $res->is_success
-                and /^Content-Length:\s*16$/mi
-		and /^Content-Type:\s*application\/x-www-form-urlencoded$/mi
-		and /^foo=bar&bar=test/m;
-print "ok 18\n";		
+ok(/^Content-Length:\s*16$/mi, 'Content-Length:');
+ok(/^Content-Type:\s*application\/x-www-form-urlencoded$/mi, '/^Content-Type:\s*application\/x-www-form-urlencoded$/mi');
+ok(/^foo=bar&bar=test/m, '/^foo=bar&bar=test/m');
 
 #----------------------------------------------------------------
 print "\nTerminating server...\n";
-sub httpd_get_quit
-{
-    my($c) = @_;
-    $c->send_error(503, "Bye, bye");
+sub httpd_get_quit {
+    shift->send_error(503, "Bye, bye");
     exit;  # terminate HTTP server
 }
 $ua->initialize;
 $req = new HTTP::Request GET => url("/quit", $base);
 print STDERR "\tRegistering '".$req->url."'\n" if $DEBUG;
-if ( $res = $ua->register ($req) ) { 
-    print STDERR $res->error_as_HTML;
-    print "not";
-} 
-print "ok 19\n";
+ok($res = $ua->register($req), '$res = $ua->register($req)');
+print STDERR $res->error_as_HTML if $res;
 
 $entries = $ua->wait(5);
 foreach (keys %$entries) {
@@ -373,7 +366,6 @@ foreach (keys %$entries) {
     $res = $entries->{$_}->response;
     print STDERR "Answer for '",$res->request->url, "' was \t", 
           $res->code,": ", $res->message,"\n" if $DEBUG;
-
-    print "not " unless $res->code == 503 and $res->content =~ /Bye, bye/;
-    print "ok 20\n";
+    is($res->code, 503, '$res->code (503)');
+    ok($res->content =~ /Bye, bye/, '$res->content =~ /Bye, bye/');
 }
