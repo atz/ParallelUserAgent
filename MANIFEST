@@ -4,7 +4,6 @@ TODO
 README
 README.SSL
 Makefile.PL
-lib/Bundle/ParallelUA.pm
 lib/LWP/Parallel.pm
 lib/LWP/ParallelUA.pm
 lib/LWP/RobotPUA.pm
