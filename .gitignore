@@ -12,6 +12,9 @@ MYMETA.yml
 blib
 pm_to_blib
 
+# Test flag files
+/t/live/ENABLED*
+
 # Working/Editor detritus
 *.swp
 *.tmp
