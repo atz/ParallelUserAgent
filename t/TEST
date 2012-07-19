@@ -36,5 +36,5 @@ if (@ARGV) {
     push(@tests,  <live/*.t>) if -f "live/ENABLED";
 }
 
-$ENV{PERL_LWP_TEST_ENGINE} = 'LWP::Parallel::UserAgent';
+$ENV{PERL_LWP_TEST_ENGINE} ||= 'LWP::Parallel::UserAgent';
 runtests @tests;
