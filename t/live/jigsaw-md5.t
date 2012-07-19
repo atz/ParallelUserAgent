@@ -1,27 +1,23 @@
-print "1..2\n";
-
+# perl
 use strict;
-use LWP::Parallel::UserAgent;
+use warnings;
+use Test::More tests => 5;
 
-my $ua = LWP::Parallel::UserAgent->new(keep_alive => 1);
+my $core = ($ENV{PERL_LWP_TEST_ENGINE} || 'LWP::UserAgent');
+use_ok($core);
+use_ok('HTTP::Request');
+use_ok('Digest::MD5', qw(md5_base64));
 
-my $req = HTTP::Request->new(GET => "http://jigsaw.w3.org/HTTP/h-content-md5.html");
+my $url = "http://jigsaw.w3.org/HTTP/h-content-md5.html";
+my $ua  = $core->new(keep_alive => 1);
+my $req = HTTP::Request->new(GET => $url);
 $req->header("TE", "deflate");
-
 my $res = $ua->request($req);
 
-use Digest::MD5 qw(md5_base64);
-print "not " unless $res->header("Content-MD5") eq md5_base64($res->content) . "==";
-print "ok 1\n";
+is($res->header("Content-MD5"), md5_base64($res->content) . "==", "\$res->header('Content-MD5') [$url]");
 
-print $res->as_string;
-
-my $etag = $res->header("etag");
-$req->header("If-None-Match" => $etag);
-
+$req->header("If-None-Match" => $res->header("etag"));
 $res = $ua->request($req);
-print $res->as_string;
 
-print "not " unless $res->code eq "304";
+is($res->code, 304, "\$res->code [$url] w/ etag") or print $res->as_string;
 # && $res->header("Client-Response-Num") == 2;
-print "ok 2\n";

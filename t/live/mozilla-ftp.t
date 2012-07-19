@@ -1,32 +1,27 @@
-print "1..4\n";
-
+# perl
 use strict;
-use LWP::Parallel::UserAgent;
+use warnings;
+use Test::More tests => 7;
 
-my $ua = LWP::Parallel::UserAgent->new(keep_alive => 1);
+my $core = ($ENV{PERL_LWP_TEST_ENGINE} || 'LWP::UserAgent');
+use_ok($core);
+use_ok('HTTP::Request');
 
-my $req = HTTP::Request->new(GET => "ftp://ftp.mozilla.org/pub/");
-
+my $url = "ftp://ftp.mozilla.org/pub/";
+my $ua  = $core->new(keep_alive => 1);
+my $req = HTTP::Request->new(GET => $url);
+$req->header(Connection => "close");
 my $res = $ua->request($req);
 
-#print $res->as_string;
+is($res->code, 200, "\$res->code == 200 [$url]") or print $res->as_string;
+like($res->header("Content-Type"), qr/ftp-dir-listing/, "Content-Type [$url]");
+like($res->content, qr/README/, "Content match [$url]");
 
-print "not " unless $res->code eq "200";
-print "ok 1\n";
-
-print "not " unless $res->header("Content-Type") =~ /ftp-dir-listing/;
-print "ok 2\n";
-
-print "not " unless $res->content =~ /README/;
-print "ok 3\n";
-
-$req = HTTP::Request->new(GET => "ftp://ftp.mozilla.org/pub/README");
+$url = "ftp://ftp.mozilla.org/pub/README";
+$req = HTTP::Request->new(GET => $url);
 $res = $ua->request($req);
 
 # do not print the contents in a real test -- it contains 'not' :-)
-#print $res->as_string;  
-#print "not " unless $res->header("Content-Type") =~ /text\/plain/;
-#print "ok 4\n";
+is($res->header("Content-Type"), 'application/octet-stream', "Content-Type [$url]");  # was text/plain
+like($res->content, qr/mirrors\.html/, "Content match [$url]");
 
-print "not " unless $res->content =~ /mirrors.html/;
-print "ok 4\n";
