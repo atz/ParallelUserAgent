@@ -6,6 +6,8 @@ package LWP::Parallel::Protocol::http;
 
 use strict;
 
+use Socket();
+use POSIX();
 require LWP::Debug;
 require HTTP::Response;
 require HTTP::Status;
@@ -20,9 +22,9 @@ require LWP::Parallel::Protocol;
 require LWP::Protocol::http10; # until i figure out gisle's http1.1 stuff!
 @ISA = qw(LWP::Parallel::Protocol LWP::Protocol::http10);
 
-my $CRLF         = "\015\012";     # how lines should be terminated;
-				   # "\r\n" is not correct on all systems, for
-				   # instance MacPerl defines it to "\012\015"
+my $CRLF = "\015\012"; # how lines should be terminated;
+                       # "\r\n" is not correct on all systems, for
+                       # instance MacPerl defines it to "\012\015"
 
 # The following 4 methods are more or less a simple breakdown of the
 # original $http->request method:
@@ -45,9 +47,9 @@ sub handle_connect {
     # check method
     my $method = $request->method;
     unless ($method =~ /^[A-Za-z0-9_!\#\$%&\'*+\-.^\`|~]+$/) {  # HTTP token
-	return (undef, new HTTP::Response &HTTP::Status::RC_BAD_REQUEST,
-				  'Library does not allow method ' .
-				  "$method for 'http:' URLs");
+        return (undef, new HTTP::Response &HTTP::Status::RC_BAD_REQUEST,
+                      'Library does not allow method ' .
+                      "$method for 'http:' URLs");
     }
 
     my $url = $request->url;
@@ -71,28 +73,26 @@ sub handle_connect {
 #    print "Socket $socket: SO_LINGER (", $a_data[0],", ",$a_data[1],")\n";
 # got Linger got it!
 
-
     ($socket, $fullpath);
 }
 
 sub get_address {
     my ($self, $proxy, $url,$method) = @_;
-    my($host, $port, $fullpath);
+    my ($host, $port, $fullpath);
 
     # Check if we're proxy'ing
     if (defined $proxy) {
-	# $proxy is an URL to an HTTP server which will proxy this request
-	$host = $proxy->host;
-	$port = $proxy->port;
-	$fullpath = $method && ($method eq "CONNECT") ?
-                    ($url->host . ":" . $url->port) :
-                     $url->as_string;
-    }
-    else {
-	$host = $url->host;
-	$port = $url->port;
-	$fullpath = $url->path_query;
-	$fullpath = "/" unless length $fullpath;
+        # $proxy is an URL to an HTTP server which will proxy this request
+        $host = $proxy->host;
+        $port = $proxy->port;
+        $fullpath = $method && ($method eq "CONNECT") ?
+                        ($url->host . ":" . $url->port) :
+                         $url->as_string;
+    } else {
+        $host = $url->host;
+        $port = $url->port;
+        $fullpath = $url->path_query;
+        $fullpath = "/" unless length $fullpath;
     }
     ($host, $port, $fullpath);
 }
@@ -101,49 +101,38 @@ sub _connect { # renamed to make clear that this is private sub
     my ($self, $host, $port, $timeout, $nonblock) = @_;
     my ($socket); 
     unless ($nonblock) { 
-      # perform good ol' blocking behavior
-      # 
-      # this method inherited from LWP::Protocol::http
+      # perform good ol' blocking behavior, inherited from LWP::Protocol::http
       $socket = $self->_new_socket($host, $port, $timeout);
-      # currently empty function in LWP::Protocol::http
-      # $self->_check_sock($request, $socket);
+      # $self->_check_sock($request, $socket); # currently empty function in LWP::Protocol::http
     } else { 
       # new non-blocking behavior
-      #
       # thanks to http://www.en-directo.net/mail/kirill.html
-      use Socket();
-      use POSIX();
-      $socket = 
-        IO::Socket::INET->new(Proto => 'tcp', # Timeout => $timeout,
-	                      $self->_extra_sock_opts ($host, $port));
+      $socket =  IO::Socket::INET->new(Proto => 'tcp', # Timeout => $timeout,
+                              $self->_extra_sock_opts ($host, $port));
 
       die "Can't create socket for $host:$port ($@)" unless $socket;
-      unless ( defined $socket->blocking (0) )
-      {
-	# IO::Handle::blocking doesn't (yet?) work on Win32 (ActiveState port)
-	# The following happens to work though.
-	# See also: perlport manpage, POE::Kernel, POE::Wheel::SocketFactory,
-	#   Winsock2.h
-	if ( $^O eq 'MSWin32' )
-	{
-	  my $set_it = "1";
-	  my $ioctl_val = 0x80000000 | (4 << 16) | (ord('f') << 8) | 126;
-  	  $ioctl_val = ioctl ($socket, $ioctl_val, $set_it);
-#	warn 'Win32 ioctl returned ' . (defined $ioctl_val ? $ioctl_val : '[undef]') . "\n";
-#	warn "Win32 ioctlsocket failed\n" unless $ioctl_val;
-	}
+      unless ( defined $socket->blocking(0) ) {
+        # IO::Handle::blocking doesn't (yet?) work on Win32 (ActiveState port)
+        # The following happens to work though.
+        # See also: perlport manpage, POE::Kernel, POE::Wheel::SocketFactory, Winsock2.h
+        if ( $^O eq 'MSWin32' ) {
+          my $set_it = "1";
+          my $ioctl_val = 0x80000000 | (4 << 16) | (ord('f') << 8) | 126;
+          $ioctl_val = ioctl ($socket, $ioctl_val, $set_it);
+        # warn 'Win32 ioctl returned ' . (defined $ioctl_val ? $ioctl_val : '[undef]') . "\n";
+        # warn "Win32 ioctlsocket failed\n" unless $ioctl_val;
+        }
       }
       my $rhost = Socket::inet_aton ($host);
       die "Bad hostname $host" unless defined $rhost;
       unless ( $socket->connect ($port, $rhost) )
       {
-	my $err = $! + 0;
-	# More trouble with ActiveState: EINPROGRESS and EWOULDBLOCK
-	# are missing from POSIX.pm. See Microsoft's Winsock2.h
-	my ($einprogress, $ewouldblock) = $^O eq 'MSWin32' ?
-		(10036, 10035) : (POSIX::EINPROGRESS(), POSIX::EWOULDBLOCK());
-	die "Can't connect to $host:$port ($@)"
-		if $err and $err != $einprogress and $err != $ewouldblock;
+        my $err = $! + 0;
+# More trouble with ActiveState: EINPROGRESS and EWOULDBLOCK
+# are missing from POSIX.pm. See Microsoft's Winsock2.h
+        my ($einprogress, $ewouldblock) = $^O eq 'MSWin32' ? (10036, 10035) : (POSIX::EINPROGRESS(), POSIX::EWOULDBLOCK());
+
+        die "Can't connect to $host:$port ($@)" if $err and $err != $einprogress and $err != $ewouldblock;
       } 
     }
     LWP::Debug::debug("Socket is $socket");
@@ -157,12 +146,12 @@ sub write_request {
   my $url    = $request->url;
 
  LWP::Debug::trace ("write_request (".
-		    (defined $request ? $request : '[undef]').
-		    ", ". (defined $socket ? $socket : '[undef]').
-		    ", ". (defined $fullpath ? $fullpath : '[undef]').
-		    ", ". (defined $arg ? $arg : '[undef]').
-		    ", ". (defined $timeout ? $timeout : '[undef]'). 
-		    ", ". (defined $proxy ? $proxy : '[undef]'). ")");
+          (defined $request  ? $request  : '[undef]').
+    ", ". (defined $socket   ? $socket   : '[undef]').
+    ", ". (defined $fullpath ? $fullpath : '[undef]').
+    ", ". (defined $arg      ? $arg      : '[undef]').
+    ", ". (defined $timeout  ? $timeout  : '[undef]'). 
+    ", ". (defined $proxy    ? $proxy    : '[undef]'). ")");
 
   my $sel = IO::Select->new($socket) if $timeout;
 
@@ -178,7 +167,7 @@ sub write_request {
   if ($ctype eq 'CODE') {
     die 'No Content-Length header for request with dynamic content'
       unless defined($h->header('Content-Length')) ||
-	$h->content_type =~ /^multipart\//;
+        $h->content_type =~ /^multipart\//;
     # For HTTP/1.1 we could have used chunked transfer encoding...
   } 
   else {
@@ -199,28 +188,28 @@ sub write_request {
   $length = length($buf);
   $offset = 0;
   while ( $offset < $length ) {
-	die "write timeout" if $timeout && !$sel->can_write($timeout);
-	$n = $socket->syswrite($buf, $length-$offset, $offset );
-	die $! unless defined($n);
-	$offset += $n;
+    die "write timeout" if $timeout && !$sel->can_write($timeout);
+    $n = $socket->syswrite($buf, $length-$offset, $offset );
+    die $! unless defined($n);
+    $offset += $n;
   }
  
   LWP::Debug::conns($buf);
   
-  if ($ctype eq 'CODE') {
-    while ( ($buf = &$cont_ref()), defined($buf) && length($buf)) {
-      # syswrite $buf
-      $length = length($buf);
-      $offset = 0;
-      while ( $offset < $length ) {
-	die "write timeout" if $timeout && !$sel->can_write($timeout);
-	$n = $socket->syswrite($buf, $length-$offset, $offset );
-	die $! unless defined($n);
-	$offset += $n;
-      }
-      LWP::Debug::conns($buf);
-    }
-  } 
+    if ($ctype eq 'CODE') {
+        while ( ($buf = &$cont_ref()), defined($buf) && length($buf)) {
+            # syswrite $buf
+            $length = length($buf);
+            $offset = 0;
+            while ( $offset < $length ) {
+                die "write timeout" if $timeout && !$sel->can_write($timeout);
+                $n = $socket->syswrite($buf, $length-$offset, $offset );
+                die $! unless defined($n);
+                $offset += $n;
+            }
+            LWP::Debug::conns($buf);
+        }
+    } 
   elsif (defined($$cont_ref) && length($$cont_ref)) {
     # syswrite $$cont_ref
     $length = length($$cont_ref);
@@ -264,17 +253,16 @@ sub write_request {
 my %pushback;
 
 sub read_chunk {
-  my ($self, $response, $socket, $request, $arg, $size, 
-      $timeout, $entry) = @_;
+  my ($self, $response, $socket, $request, $arg, $size, $timeout, $entry) = @_;
 
- LWP::Debug::trace ("read_chunk (".
-		    (defined $response ? $response : '[undef]').
-		    ", ". (defined $socket ? $socket : '[undef]').
-		    ", ". (defined $request ? $request : '[undef]').
-		    ", ". (defined $arg ? $arg : '[undef]').
-		    ", ". (defined $size ? $size : '[undef]').
-		    ", ". (defined $timeout ? $timeout : '[undef]').
-		    ", ". (defined $entry ? $entry : '[undef]'). ")");
+  LWP::Debug::trace ("read_chunk (".
+                      (defined $response ? $response : '[undef]').
+                ", ". (defined $socket   ? $socket   : '[undef]').
+                ", ". (defined $request  ? $request  : '[undef]').
+                ", ". (defined $arg      ? $arg      : '[undef]').
+                ", ". (defined $size     ? $size     : '[undef]').
+                ", ". (defined $timeout  ? $timeout  : '[undef]').
+                ", ". (defined $entry    ? $entry    : '[undef]'). ")");
 
   # hack! Can we just generate a new Select object here? Or do we
   # have to take the one we created in &write_request?!?
@@ -302,10 +290,10 @@ sub read_chunk {
   # need our own EOF detection here
   unless ( $n ) {
       unless ($response  and  $response->code) {
-	  $response->message("Unexpected EOF while reading response");
-	  $response->code(&HTTP::Status::RC_BAD_GATEWAY);
-	  $response->request($request);
-	  return 0; # EOF
+          $response->message("Unexpected EOF while reading response");
+          $response->code(&HTTP::Status::RC_BAD_GATEWAY);
+          $response->request($request);
+          return 0; # EOF
       }
   }
 
@@ -327,7 +315,7 @@ sub read_chunk {
       $response->request($request);
     } 
     elsif ((length($buf) >= 5 and $buf !~ /^HTTP\//) or
-	     $buf =~ /\012/ ) {
+             $buf =~ /\012/ ) {
       # HTTP/0.9 or worse
       LWP::Debug::debug("HTTP/0.9 assume OK");
       $response->code(&HTTP::Status::RC_OK);
@@ -356,33 +344,29 @@ sub read_chunk {
       my($key, $val);
 
       while ($buf =~ s/([^\012]*)\012//) {
-	my $line = $1;
+        my $line = $1;
 
-	# if we need to restore as content when illegal headers
-	# are found.
-	my $save = "$line\012"; 
-	
-	$line =~ s/\015$//;
-	last unless length $line;
-	
-	if ($line =~ /^([a-zA-Z0-9_\-.]+)\s*:\s*(.*)/) {
-	  $response->push_header($key, $val) if $key;
-	  ($key, $val) = ($1, $2);
-	} elsif ($line =~ /^\s+(.*)/ && $key) {
-	  $val .= " $1"; 
-	} else {
-	    $response->push_header("Client-Bad-Header-Line" =>
-			           $line);
-	}
+        # if we need to restore as content when illegal headers are found.
+        my $save = "$line\012"; 
+        
+        $line =~ s/\015$//;
+        last unless length $line;
+        
+        if ($line =~ /^([a-zA-Z0-9_\-.]+)\s*:\s*(.*)/) {
+          $response->push_header($key, $val) if $key;
+          ($key, $val) = ($1, $2);
+        } elsif ($line =~ /^\s+(.*)/ && $key) {
+          $val .= " $1"; 
+        } else {
+            $response->push_header("Client-Bad-Header-Line" => $line);
+        }
       }
       $response->push_header($key, $val) if $key;
 
-      # check to see if we have any header at all
+      # check to see if we have any header at all: we need at least one
       unless (&headers($response)) {
-	# we need at least one header to go on
         LWP::Debug::debug("no headers found, inserting Client-Date");
-	$response->header ("Client-Date" => 
-			   HTTP::Date::time2str(time));
+        $response->header ("Client-Date" =>  HTTP::Date::time2str(time));
       }
     } # of if then else
   } # of if $response
@@ -392,7 +376,7 @@ sub read_chunk {
     $self->_get_sock_info($response, $socket); 
     # the CONNECT method does not need to read content
     if ($request->method eq "CONNECT") { # from LWP 5.48's Protocol/http.pm
-	$response->{client_socket} = $socket;  # so it can be picked up
+        $response->{client_socket} = $socket;  # so it can be picked up
     }  
     else {
       # all other methods want to read content, I guess...
@@ -447,12 +431,12 @@ package LWP::Parallel::Protocol::http::SocketMethods;
 sub sysread {
     my $self = shift;
     if (my $timeout = ${*$self}{io_socket_timeout}) {
-	die "read timeout" unless $self->can_read($timeout);
+        die "read timeout" unless $self->can_read($timeout);
     }
     else {
-	# since we have made the socket non-blocking we
-	# use select to wait for some data to arrive
-	$self->can_read(undef) || die "Assert";
+        # since we have made the socket non-blocking we
+        # use select to wait for some data to arrive
+        $self->can_read(undef) || die "Assert";
     }
     sysread($self, $_[0], $_[1], $_[2] || 0);
 }
@@ -484,6 +468,5 @@ use vars qw(@ISA);
 #-----------------------------------------------------------
 # ^^^ copied from LWP::Protocol::http (v1.63 in LWP5.64)
 #-----------------------------------------------------------
-
 
 1;
