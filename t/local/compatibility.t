@@ -19,8 +19,8 @@ if ($D eq 'daemon') {       # Avoid Test::More trappings
 
     print "Pleased to meet you at: <URL:", $d->url, ">\n";
 
-    # open(STDOUT, ">/dev/null");
-    open(STDOUT, ">foobar.log");
+    open(STDOUT, ">/dev/null");
+    # open(STDOUT, ">foobar.log");
 
     my $i = 0;
     while ($c = $d->accept) {
@@ -28,7 +28,7 @@ if ($D eq 'daemon') {       # Avoid Test::More trappings
         if ($r = $c->get_request) {     # assignment, not conditional
             my $p = ($r->url->path_segments)[1];
             my $func = lc("httpd_" . $r->method . "_$p");
-            print "$i: " . $r->url . " ==> $func\n";
+          # print "$i: " . $r->url . " ==> $func\n";        # request rout logging
             if (defined &$func) {
                 &$func($c, $r);
             } else {
