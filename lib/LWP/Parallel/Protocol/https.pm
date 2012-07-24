@@ -13,10 +13,10 @@ if ($IO::Socket::SSL::VERSION) {
 } else {
     eval { require Net::SSL; };     # from Crypt-SSLeay
     if ($@) {
-	require IO::Socket::SSL;
-	$SSL_CLASS = "IO::Socket::SSL";
+        require IO::Socket::SSL;
+        $SSL_CLASS = "IO::Socket::SSL";
     } else {
-	$SSL_CLASS = "Net::SSL";
+        $SSL_CLASS = "Net::SSL";
     }
 }
 
