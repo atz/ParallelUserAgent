@@ -19,8 +19,7 @@ t/local/compatibility.t
 t/local/file.t
 t/local/http.t
 t/local/timeouts.t
-t/live/jigsaw-auth-b.t
-t/live/jigsaw-auth-d.t
+t/live/jigsaw-auth.t
 t/live/jigsaw-md5.t
 t/live/jigsaw-neg.t
 t/live/mozilla-ftp.t
